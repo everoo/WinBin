@@ -1,6 +1,10 @@
+import 'dart:io';
+
+//import 'package:admob_flutter/admob_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:winbin/main.dart';
+import 'package:winbin/Comments/CommentCard.dart';
+import 'package:winbin/Globals.dart';
 
 class CommentView extends StatefulWidget {
   final String docRef;
@@ -18,17 +22,35 @@ class _CommentViewState extends State<CommentView> {
   FocusNode _focus = FocusNode();
   TextField field;
   int lastN;
-
   Stream<QuerySnapshot> _stream;
 
   @override
   void initState() {
+    //Admob.initialize(getAppId());
     _stream = Firestore.instance
         .collection(type)
         .document(documentRef)
         .collection('comments')
         .snapshots();
     super.initState();
+  }
+
+  String getAppId() {
+    if (Platform.isIOS) {
+      return 'ca-app-pub-2732851918745448~9909103202';
+    } else if (Platform.isAndroid) {
+      return 'ca-app-pub-2732851918745448~7563454543';
+    }
+    return null;
+  }
+
+  String getBannerAdUnitId() {
+    if (Platform.isIOS) {
+      return 'ca-app-pub-2732851918745448/5606896116';
+    } else if (Platform.isAndroid) {
+      return 'ca-app-pub-2732851918745448/4937291206';
+    }
+    return null;
   }
 
   @override
@@ -40,7 +62,7 @@ class _CommentViewState extends State<CommentView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: themeData.backgroundColor,
+      backgroundColor: themeData.secondaryHeaderColor,
       appBar: AppBar(
         title: Text("Comments"),
         backgroundColor: themeData.colorScheme.surface,
@@ -49,8 +71,11 @@ class _CommentViewState extends State<CommentView> {
         primary: false,
         children: <Widget>[
           Container(
-            margin: EdgeInsets.fromLTRB(8, 8, 8, 8),
+            margin: EdgeInsets.fromLTRB(8, 8, 8, 0),
             child: TextField(
+              onChanged: (c) {
+                setState(() {});
+              },
               textCapitalization: TextCapitalization.sentences,
               focusNode: _focus,
               controller: _cunt,
@@ -71,206 +96,41 @@ class _CommentViewState extends State<CommentView> {
               stream: _stream,
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return Text('Error: ${snapshot.error}');
+                  return ErrorMessage(snapshot.error);
                 }
                 switch (snapshot.connectionState) {
-                  case ConnectionState.waiting:
-                    return Text('Loading...');
-                  default:
+                  case ConnectionState.active:
+                    List<CommentCard> _commentCard = [];
                     lastN = snapshot.data.documents.length;
+                    for (DocumentSnapshot l in snapshot.data.documents) {
+                      print(l.data['n']);
+                      _commentCard.insert(
+                          l.data['n'],
+                          CommentCard(
+                              name: l.data['name'],
+                              time: '${l.data['time'].toDate()}',
+                              message: l.data['comment'],
+                              likes: l.data['likes'],
+                              dislikes: l.data['dislikes'],
+                              documentRef: documentRef,
+                              n: l.data['n']));
+                    }
                     return ListView(
                       children: <Widget>[
-                        for (var l in snapshot.data.documents)
-                          (!l.data.isEmpty)
-                              ? Container(
-                                  padding: EdgeInsets.all(10),
-                                  child: Column(
-                                    children: <Widget>[
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: <Widget>[
-                                          Text(
-                                            (l.data['name'] != null)
-                                                ? '${l.data['name']}'
-                                                : 'Anonymous',
-                                            style: themeData.textTheme.title,
-                                          ),
-                                          Text(
-                                            (l.data['time'] != null)
-                                                ? ('${l.data['time'].toDate()}'
-                                                        .substring(5, 16)
-                                                        .startsWith('0'))
-                                                    ? '${l.data['time'].toDate()}'
-                                                        .substring(5, 16)
-                                                        .substring(1)
-                                                    : '${l.data['time'].toDate()}'
-                                                        .substring(5, 16)
-                                                : 'timeless',
-                                            style: themeData.textTheme.title,
-                                          ),
-                                        ],
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.all(12.0),
-                                        child: Text(
-                                          '${l.data['comment']}',
-                                          textAlign: TextAlign.center,
-                                          style: themeData.textTheme.title,
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding:
-                                            const EdgeInsets.only(left: 150),
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.end,
-                                          children: <Widget>[
-                                            Container(
-                                              width: 40,
-                                              child: (l.data['name'] != null)
-                                                  ? FlatButton(
-                                                      child: Column(
-                                                        children: <Widget>[
-                                                          Icon(
-                                                            Icons.reply,
-                                                            color: themeData
-                                                                .textTheme
-                                                                .title
-                                                                .color,
-                                                          ),
-                                                        ],
-                                                      ),
-                                                      onPressed: () {
-                                                        _cunt.text =
-                                                            '@${l.data['name']}';
-                                                      },
-                                                    )
-                                                  : null,
-                                            ),
-                                            Container(
-                                              width: 40,
-                                              child: (l.data['name'] != null && l.data['name'] != currentUsersName)
-                                                  ? FlatButton(
-                                                      child: Column(
-                                                        children: <Widget>[
-                                                          Icon(
-                                                            Icons.edit,
-                                                            color: themeData
-                                                                .textTheme
-                                                                .title
-                                                                .color,
-                                                          ),
-                                                        ],
-                                                      ),
-                                                      onPressed: () {
-                                                        _cunt.text =
-                                                            '@${l.data['name']}';
-                                                      },
-                                                    )
-                                                  : null,
-                                            ),
-                                            Container(
-                                              width: 60,
-                                              child: FlatButton(
-                                                child: Column(
-                                                  children: <Widget>[
-                                                    Icon(
-                                                      Icons.thumb_up,
-                                                      color: themeData.textTheme
-                                                          .title.color,
-                                                    ),
-                                                    Text(
-                                                      '${l.data['likes']}',
-                                                      style: themeData
-                                                          .textTheme.title,
-                                                    )
-                                                  ],
-                                                ),
-                                                onPressed: () {
-                                                  Firestore.instance
-                                                      .runTransaction(
-                                                          (transaction) async {
-                                                    DocumentSnapshot freshSnap =
-                                                        await transaction.get(
-                                                      Firestore.instance
-                                                          .collection(type)
-                                                          .document(documentRef)
-                                                          .collection(
-                                                              'comments')
-                                                          .document(
-                                                              'comment${l.data['n']}'),
-                                                    );
-                                                    await transaction.update(
-                                                        freshSnap.reference, {
-                                                      'likes':
-                                                          freshSnap['likes'] +
-                                                              1,
-                                                    });
-                                                  });
-                                                },
-                                              ),
-                                            ),
-                                            Container(
-                                              width: 60,
-                                              child: FlatButton(
-                                                child: Column(
-                                                  children: <Widget>[
-                                                    Icon(
-                                                      Icons.thumb_down,
-                                                      color: themeData.textTheme
-                                                          .title.color,
-                                                    ),
-                                                    Text(
-                                                      '${l.data['dislikes']}',
-                                                      style: themeData
-                                                          .textTheme.title,
-                                                    )
-                                                  ],
-                                                ),
-                                                onPressed: () {
-                                                  Firestore.instance
-                                                      .runTransaction(
-                                                          (transaction) async {
-                                                    DocumentSnapshot freshSnap =
-                                                        await transaction.get(
-                                                      Firestore.instance
-                                                          .collection(type)
-                                                          .document(documentRef)
-                                                          .collection(
-                                                              'comments')
-                                                          .document(
-                                                              'comment${l.data['n']}'),
-                                                    );
-                                                    await transaction.update(
-                                                        freshSnap.reference, {
-                                                      'dislikes': freshSnap[
-                                                              'dislikes'] +
-                                                          1,
-                                                    });
-                                                  });
-                                                },
-                                              ),
-                                            )
-                                          ],
-                                        ),
-                                      )
-                                    ],
-                                  ),
-                                )
-                              : Container(),
+                        for (CommentCard com in _commentCard) com,
                         Container(
-                          height: 70,
-                        )
+                          height: 100,
+                        ),
                       ],
                     );
+                  default:
+                    return Container();
                 }
               },
             ),
           ),
         ],
       ),
-      //floating action button that sends data
       floatingActionButton: FloatingActionButton(
         backgroundColor: themeData.colorScheme.primary,
         child: Icon(
@@ -278,8 +138,12 @@ class _CommentViewState extends State<CommentView> {
           color: themeData.textTheme.title.color,
         ),
         onPressed: (_cunt.text.isEmpty)
-            ? _focus.requestFocus
+            ? () {
+                _focus.requestFocus();
+                lightImpact();
+              }
             : () {
+                lightImpact();
                 Firestore.instance.runTransaction((transaction) async {
                   DocumentReference docref =
                       Firestore.instance.collection(type).document(documentRef);
@@ -297,7 +161,7 @@ class _CommentViewState extends State<CommentView> {
                   'likes': 0,
                   'dislikes': 0,
                   'n': lastN,
-                  'name': currentUsersName,
+                  'name': myID,
                   'time': Timestamp.now()
                 }).then((t) {
                   _cunt.text = '';

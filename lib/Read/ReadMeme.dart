@@ -1,31 +1,41 @@
-import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:winbin/Comments/CommentBar.dart';
-import 'package:winbin/main.dart';
+import 'package:winbin/Globals.dart';
+import 'package:winbin/MyStuff/MyPictureHolder.dart';
 
 class ReadMeme extends StatefulWidget {
   final String docRef;
-  final Uint8List imgFile;
-  ReadMeme(this.docRef, this.imgFile);
+  final Stream<DocumentSnapshot> stream;
+
+  ReadMeme(this.docRef, this.stream);
   @override
-  _ReadMemeState createState() => _ReadMemeState(docRef, imgFile);
+  _ReadMemeState createState() => _ReadMemeState(docRef, stream);
 }
 
 class _ReadMemeState extends State<ReadMeme>
     with AutomaticKeepAliveClientMixin {
   final String docRef;
-  final Uint8List imgFile;
+  final Stream<DocumentSnapshot> _stream;
+  String url;
+  Image _image;
 
-  _ReadMemeState(this.docRef, this.imgFile);
-  Stream<DocumentSnapshot> _stream;
+  _ReadMemeState(this.docRef, this._stream);
 
   @override
   void initState() {
-    _stream =
-        Firestore.instance.collection('images').document(docRef).snapshots();
-
+    getUrl();
     super.initState();
+  }
+
+  void getUrl() async {
+    url = await FirebaseStorage.instance.ref().child(docRef).getDownloadURL();
+    _image = Image.network(
+      url,
+      fit: BoxFit.scaleDown,
+    );
+    setState(() {});
   }
 
   @override
@@ -35,44 +45,29 @@ class _ReadMemeState extends State<ReadMeme>
       stream: _stream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Container(
-            child: Center(
-              child: Text('this didnt load properly\n${snapshot.error}'),
-            ),
-          );
+          return ErrorMessage(snapshot.error);
         }
         switch (snapshot.connectionState) {
           case ConnectionState.active:
-            if (imgFile == null) {
-              return Container();
-            } else {
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-                child: Container(
+            if (snapshot.data != null) {
+              if (snapshot.data.data != null) {
+                return ReadDecoration(
                   height: 500,
-                  decoration: BoxDecoration(
-                      boxShadow: [
-                        BoxShadow(
-                            offset: Offset.fromDirection(1, 3),
-                            color: Color(0x55000000),
-                            blurRadius: 2,
-                            spreadRadius: 2)
-                      ],
-                      color: themeData.backgroundColor,
-                      borderRadius: BorderRadius.circular(25)),
                   child: Column(
                     children: <Widget>[
                       Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Container(
-                          child: Image.memory(
-                            imgFile,
-                            fit: BoxFit.cover,
-                          ),
-                          height: 400,
-                          width: 315,
-                          margin: EdgeInsets.only(top: 5),
-                        ),
+                        padding: const EdgeInsets.fromLTRB(12.5, 10, 12.5, 0),
+                        child: (url == null)
+                            ? Container(
+                                height: 415,
+                              )
+                            : MyPictureHolder(
+                                width: 340,
+                                height: 415,
+                                imageSize: Size(snapshot.data['width'],
+                                    snapshot.data['height']),
+                                image: _image,
+                              ),
                       ),
                       CommentBar(
                           '${snapshot.data['likes']}',
@@ -80,11 +75,16 @@ class _ReadMemeState extends State<ReadMeme>
                           '${snapshot.data['comments']}',
                           context,
                           docRef,
-                          'images')
+                          'images',
+                          url)
                     ],
                   ),
-                ),
-              );
+                );
+              } else {
+                return Container();
+              }
+            } else {
+              return Container();
             }
             break;
           default:
@@ -92,6 +92,12 @@ class _ReadMemeState extends State<ReadMeme>
         }
       },
     );
+  }
+
+  @override
+  void dispose() {
+    _image = null;
+    super.dispose();
   }
 
   @override

@@ -1,186 +1,94 @@
+import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:winbin/Comments/CommentBar.dart';
-import 'package:winbin/main.dart';
+import 'package:winbin/Globals.dart';
+import 'package:winbin/MyStuff/MyStyle.dart';
 
 class ReadStory extends StatefulWidget {
   final String docRef;
-  ReadStory(this.docRef);
+
+  final Stream<DocumentSnapshot> stream;
+  ReadStory(this.docRef, this.stream);
   @override
-  _ReadStoryState createState() => _ReadStoryState(docRef);
+  _ReadStoryState createState() => _ReadStoryState(docRef, stream);
 }
 
 class _ReadStoryState extends State<ReadStory> {
   final String docRef;
-  _ReadStoryState(this.docRef);
+  double height = 0;
+  StyledText sText;
+  String copyable = '';
+  _ReadStoryState(this.docRef, this._stream);
+  final Stream<DocumentSnapshot> _stream;
 
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  int cou = 0;
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-      child: Container(
-        height: 256,
-        decoration: BoxDecoration(boxShadow: [
-          BoxShadow(
-              offset: Offset.fromDirection(1, 3),
-              color: Color(0x55000000),
-              blurRadius: 2,
-              spreadRadius: 2)
-        ], color: themeData.backgroundColor, borderRadius: BorderRadius.circular(15)),
-        child: StreamBuilder(
-          stream: Firestore.instance
-              .collection('stories')
-              .document(docRef)
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return Text('Error: ${snapshot.error}');
-            }
+    return StreamBuilder(
+      stream: _stream,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return ErrorMessage(snapshot.error);
+        }
+        if (snapshot.data != null) {
+          if (snapshot.data.data != null) {
             switch (snapshot.connectionState) {
-              case ConnectionState.waiting:
-                return Center(
-                  child: CircularProgressIndicator(),
-                );
-              default:
-                List finalStrings = [];
-                List split;
-                String workableString = snapshot.data['story'];
-                split = workableString.split('/');
-                for (String l in split) {
-                  if (l.contains('|')) {
-                    var fin = l.split('|');
-                    finalStrings.add(fin);
-                  } else {
-                    finalStrings.add([l]);
-                  }
+              case ConnectionState.active:
+                if (height == 0) {
+                  height = min(
+                      (snapshot.data['story'].toString().length.toDouble() /
+                                  48) *
+                              15 +
+                          50,
+                      277);
                 }
-                return Column(
-                  children: <Widget>[
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(8, 16, 8, 22),
-                      child: Container(
-                        height: 150,
-                        child: Center(
-                          child: (snapshot.data != null)
-                              ? Wrap(
-                                  children: <Widget>[
-                                    for (List p in finalStrings)
-                                      (p.length == 1)
-                                          ? Text(
-                                              p[0],
-                                              style: TextStyle(color: (darkMode)?Colors.grey[300]:Colors.black),
-                                            )
-                                          : Text(p[0], style: SStyle(p))
-                                  ],
-                                )
-                              : Container(),
+                if (copyable == '' && snapshot.data['story'] != null) {
+                  snapshot.data['story'].split('/').forEach((d) {
+                    copyable += d.split('|').first;
+                  });
+                }
+                return ReadDecoration(
+                  height: (height == 0) ? 123 : height + 73,
+                  child: Column(
+                    children: <Widget>[
+                      Container(
+                        padding: EdgeInsets.fromLTRB(4, 0, 4, 0),
+                        height: height,
+                        child: ListView(
+                          children: <Widget>[
+                            sText =
+                                StyledText(ogString: snapshot.data['story']),
+                          ],
                         ),
                       ),
-                    ),
-                    CommentBar(
-                        '${snapshot.data['likes']}',
-                        '${snapshot.data['dislikes']}',
-                        '${snapshot.data['comments']}',
-                        context,
-                        docRef,
-                        'stories')
-                  ],
+                      CommentBar(
+                          '${snapshot.data['likes']}',
+                          '${snapshot.data['dislikes']}',
+                          '${snapshot.data['comments']}',
+                          context,
+                          docRef,
+                          'stories',
+                          copyable)
+                    ],
+                  ),
                 );
+              default:
+                return Container(height: 123);
             }
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class SStyle extends TextStyle {
-  final List<String> changes;
-  SStyle(this.changes);
-
-  @override
-  FontWeight get fontWeight {
-    if (changes.contains('bold')) {
-      return FontWeight.bold;
-    } else {
-      return FontWeight.normal;
-    }
-  }
-
-  @override
-  FontStyle get fontStyle {
-    if (changes.contains('italic')) {
-      return FontStyle.italic;
-    } else {
-      return FontStyle.normal;
-    }
-  }
-
-  @override
-  double get fontSize {
-    for (var change in changes) {
-      if (double.tryParse(change) != null) {
-        return double.parse(change);
-      }
-    }
-    return super.fontSize;
-  }
-
-  @override
-  Color get color {
-    List _colors = ['red', 'blue', 'green', 'yellow', 'purple', 'teal'];
-    var colorChange = '';
-    for (var change in changes) {
-      if (_colors.contains(change)) {
-        colorChange = change;
-      }
-    }
-    switch (colorChange) {
-      case 'red':
-        return Colors.red;
-      case 'blue':
-        return Colors.blue;
-      case 'green':
-        return Colors.green;
-      case 'yellow':
-        return Colors.yellow;
-      case 'purple':
-        return Colors.purple;
-      case 'teal':
-        return Colors.teal;
-      default:
-        if (darkMode) {
-          return Colors.white;
+          } else {
+            return Container();
+          }
         } else {
-          return Colors.black;
+          return Container();
         }
-    }
-  }
-
-  @override
-  Color get backgroundColor {
-    List _colors = ['hred', 'hblue', 'hgreen', 'hyellow', 'hpurple', 'hteal'];
-    var colorChange = '';
-    for (var change in changes) {
-      if (_colors.contains(change)) {
-        colorChange = change;
-      }
-    }
-    switch (colorChange) {
-      case 'hred':
-        return Colors.red;
-      case 'hblue':
-        return Colors.blue;
-      case 'hgreen':
-        return Colors.green;
-      case 'hyellow':
-        return Colors.yellow;
-      case 'hpurple':
-        return Colors.purple;
-      case 'hteal':
-        return Colors.teal;
-      default:
-        return Colors.transparent;
-    }
+      },
+    );
   }
 }
