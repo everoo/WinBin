@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
-import 'package:winbin/Globals.dart';
+import 'package:Archive/Globals.dart';
 
 class MyVideoPlayer extends StatefulWidget {
   final VideoPlayerController controller;
@@ -18,7 +18,7 @@ class MyVideoPlayer extends StatefulWidget {
 }
 
 class _MyVideoPlayerState extends State<MyVideoPlayer> {
-  VideoPlayerController _controller;
+  final VideoPlayerController _controller;
   double currentPosition = 0;
   final double height;
   final double width;
@@ -27,19 +27,22 @@ class _MyVideoPlayerState extends State<MyVideoPlayer> {
 
   _MyVideoPlayerState(this._controller, this.height, this.width);
 
-
-  //Make it so there is only one video player controller on the home screen
-  //basically it would wait until there was ten seconds left in the video
-  //Then load the next one in the stream, all i store is the url and have one controller per tab
-  //and a stream list that is jsut the video urls, create a new  
-  //have a boolean list of video that swaps between [null, Video.network(url)] and [Video.network(url), null]
+  double _angle = 0;
+  double _scale = 1;
+  Offset _point = Offset(0, 0);
+  List<ScaleUpdateDetails> ds = [
+    ScaleUpdateDetails(),
+    ScaleUpdateDetails(),
+    ScaleUpdateDetails()
+  ];
+  int countSwitch = 0;
 
   @override
   void initState() {
     listener = () {
       Timer.run(() {
-        setState(() {
-          if (_controller.value.duration != null) {
+        if (_controller.value.duration != null) {
+          setState(() {
             if (_controller.value.position.inMilliseconds.toDouble() >
                 _controller.value.duration.inMilliseconds.toDouble()) {
               currentPosition =
@@ -51,46 +54,116 @@ class _MyVideoPlayerState extends State<MyVideoPlayer> {
               currentPosition =
                   _controller.value.position.inMilliseconds.toDouble();
             }
-          }
-        });
+          });
+        }
       });
     };
-    _controller.addListener(listener);
+    if (_controller != null) {
+      _controller.removeListener(listener);
+      _controller.addListener(listener);
+    }
     super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_controller == null) return Container();
     player = VideoPlayer(_controller);
-    return (_controller.value != null)
-        ? Column(
-            children: <Widget>[
-              GestureDetector(
-                onTap: () {
-                  lightImpact();
-                  if (_controller.value.isPlaying) {
-                    _controller.pause();
-                  } else {
-                    _controller.play();
-                  }
-                },
-                onLongPress: () {
-                  _controller.setLooping(looping);
-                },
-                child: Container(
-                  height: height,
-                  width: width,
-                  margin: EdgeInsets.fromLTRB(12, 12, 12, 2),
-                  child: player,
+    return GestureDetector(
+      onDoubleTap: () {
+        if (_scale == 1) {
+          if (_controller.value.size.aspectRatio > width / (height - 40)) {
+            _scale =
+                (_controller.value.size.width / _controller.value.size.height) *
+                    ((height - 40) / width);
+          } else {
+            _scale =
+                (_controller.value.size.height / _controller.value.size.width) *
+                    (width / (height - 40));
+          }
+        } else {
+          _scale = 1;
+        }
+        _angle = 0;
+        _point = Offset.zero;
+        setState(() {});
+      },
+      onScaleStart: (d) {
+        countSwitch = 0;
+      },
+      onScaleUpdate: (d) {
+        ds.insert(0, d);
+        double deltaRotation = 0;
+        double deltaScale = 0;
+        Offset deltaTrans = Offset(ds[1].focalPoint.dx - ds[2].focalPoint.dx,
+            ds[1].focalPoint.dy - ds[2].focalPoint.dy);
+        if (countSwitch > 3) {
+          deltaRotation = ds[1].rotation - ds[2].rotation;
+          deltaScale = ds[1].scale - ds[2].scale;
+          _point = Offset(
+              _point.dx + deltaTrans.dx * 1.5, _point.dy + deltaTrans.dy * 1.5);
+        } else {
+          countSwitch += 1;
+        }
+        _angle += deltaRotation;
+        _scale += deltaScale * 1.2;
+        setState(() {});
+        ds.removeLast();
+      },
+      onTap: () {
+        lightImpact();
+        if (_controller.value.isPlaying) {
+          _controller.pause();
+        } else {
+          if (_controller.value.duration == _controller.value.position) {
+            _controller.seekTo(Duration(seconds: 0));
+          }
+          _controller.play();
+        }
+      },
+      onLongPress: () {
+        lightImpact();
+        _controller.setLooping(!_controller.value.isLooping);
+      },
+      child: Container(
+        height: height,
+        child: ListView(
+          physics: NeverScrollableScrollPhysics(),
+          children: <Widget>[
+            Container(
+              height: height - 40,
+              color: Colors.transparent,
+              child: ClipRRect(
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(25),
+                  topRight: Radius.circular(25),
+                ),
+                child: Transform.translate(
+                  child: Transform.scale(
+                    child: Transform.rotate(
+                      child: Align(
+                        child: AspectRatio(
+                          aspectRatio: _controller.value.aspectRatio,
+                          child: player,
+                        ),
+                      ),
+                      angle: _angle,
+                    ),
+                    scale: _scale,
+                  ),
+                  offset: _point,
                 ),
               ),
-              Stack(
+            ),
+            Container(
+              height: 40,
+              child: Stack(
                 alignment: Alignment.centerLeft,
                 children: <Widget>[
                   Container(
                     margin: EdgeInsets.only(
-                        right: (leftHanded) ? 0 : 70,
-                        left: (leftHanded) ? 70 : 0),
+                        right: (leftHanded) ? 0 : width * 0.2,
+                        left: (leftHanded) ? width * 0.2 : 0),
                     width: width * 5 / 5 - 2,
                     child: Slider(
                       max: (_controller.value.duration != null)
@@ -132,29 +205,21 @@ class _MyVideoPlayerState extends State<MyVideoPlayer> {
                     ),
                   ),
                   Padding(
-                    padding: EdgeInsets.only(left: (leftHanded) ? 15 : 275),
+                    padding: EdgeInsets.only(
+                        left: (leftHanded) ? width * 0.04 : width * 0.76),
                     child: Text(
                       (_controller.value.duration != null)
                           ? '${_controller.value.position.toString().substring(3, 7)}/${_controller.value.duration.toString().substring(3, 7)}'
                           : '0:00/0:00',
-                      style: themeData.textTheme.title,
+                      style: themeData.textTheme.headline6,
                     ),
                   )
                 ],
               ),
-            ],
-          )
-        : Container();
-  }
-
-  @override
-  void dispose() {
-    player = null;
-    if (_controller != null) {
-      _controller.dispose();
-      _controller.removeListener(listener);
-      _controller = null;
-    }
-    super.dispose();
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

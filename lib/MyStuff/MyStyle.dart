@@ -1,74 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:winbin/Globals.dart';
+import 'package:Archive/Globals.dart';
 
 class StyledText extends StatelessWidget {
   final String ogString;
-  String changelessString = '';
-  List finalStrings = [];
 
-  StyledText({Key key, this.ogString}) : super(key: key);
+  StyledText(this.ogString);
 
   @override
   Widget build(BuildContext context) {
-    // double biggestSize = 0;
-    // List finalSizes = [];
-    // List finalPads = [];
-    List split;
-    split = ogString.split('/');
-    for (String l in split) {
-      if (l.contains('|')) {
-        var fin = l.split('|');
-        finalStrings.add(fin);
-      } else {
-        finalStrings.add([l]);
-      }
-    }
-    finalStrings.forEach((f) {
-      changelessString += f[0];
-    });
-    //clean up this code later trying to make it so words stay centered in ther line when stylized
-    // finalStrings.forEach((s) {
-    //   s.forEach((c) {
-    //     if (double.tryParse(c) != null) {
-    //       double size = double.parse(c);
-    //       finalSizes.add(size);
-    //       if (size>biggestSize) {
-    //         biggestSize = size;
-    //       }
-    //     } else {
-    //       finalSizes.add(14);
-    //     }
-    //   });
-    // });
-    // print(biggestSize);
-    // print(finalSizes);
-    // print(finalStrings);
-    // int count = 0;
-    // finalSizes.forEach((size) {
-    //   print(size);
-    //   double pad = biggestSize-size/2;
-    //   print(pad);
-    //   // finalStrings[count].insert(1, pad);
-    //   // count += 1;
-    // });
-    // print(finalStrings);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 16, 8, 22),
-      child: Center(
-        child: Wrap(
-          children: <Widget>[
-            for (List p in finalStrings)
-              (p.length == 1)
-                  ? Container(
-                      child: Text(p[0], style: themeData.textTheme.title),
-                      //margin: EdgeInsets.fromLTRB(0, p[1], 0, p[1]),
-                    )
-                  : Container(
-                      child: Text(p[0], style: SStyle(p)),
-                      //margin: EdgeInsets.fromLTRB(0, p[1], 0, p[1]),
-                    )
-          ],
-        ),
+    List<String> split = ogString.split('/');
+    List finalStrings = [];
+    split.forEach((x) => finalStrings.add(x.split('-')));
+    return Center(
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        children: <Widget>[
+          for (List p in finalStrings)
+            SelectableText(
+              p[0],
+              style: SStyle(p),
+              textAlign: TextAlign.center,
+              toolbarOptions: ToolbarOptions(),
+            )
+        ],
       ),
     );
   }
@@ -80,27 +34,27 @@ class SStyle extends TextStyle {
 
   @override
   FontWeight get fontWeight {
-    if (changes.contains('bold')) {
-      return FontWeight.bold;
-    } else {
-      return FontWeight.normal;
-    }
+    if (changes.contains('bold')) return FontWeight.bold;
+    return FontWeight.normal;
   }
 
   @override
   FontStyle get fontStyle {
-    if (changes.contains('italic')) {
-      return FontStyle.italic;
-    } else {
-      return FontStyle.normal;
-    }
+    if (changes.contains('italic')) return FontStyle.italic;
+    return FontStyle.normal;
   }
 
   @override
   double get fontSize {
     for (var change in changes) {
       if (double.tryParse(change) != null) {
-        return double.parse(change);
+        if (double.parse(change) > 400) {
+          return 400;
+        } else if (double.parse(change) < 0) {
+          return super.fontSize;
+        } else {
+          return double.parse(change);
+        }
       }
     }
     return super.fontSize;

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:winbin/Globals.dart';
-import 'package:winbin/MyStuff/MyStyle.dart';
-import 'package:winbin/MyStuff/MySubmitBar.dart';
+import 'package:Archive/Globals.dart';
+import 'package:Archive/MyStuff/MyStyle.dart';
+import 'package:Archive/MyStuff/MySubmitBar.dart';
 
 class CreateStory extends StatefulWidget {
   @override
@@ -11,45 +11,27 @@ class CreateStory extends StatefulWidget {
 class _CreateStoryState extends State<CreateStory> {
   TextEditingController _cont = TextEditingController();
   bool _editing = true;
-  SubmitBar _bar;
+  Map<String, dynamic> data;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 560,
+      height: height * 0.85,
       child: Column(
         children: <Widget>[
-          Container(
-            height: 453,
-            padding: EdgeInsets.fromLTRB(10, 0, 10, 0),
+          ReadDecoration(
+            height: height * 0.64,
             margin: EdgeInsets.fromLTRB(8, 8, 8, 8),
-            decoration: BoxDecoration(
-                boxShadow: [
-                  BoxShadow(
-                      offset: Offset.fromDirection(1, 3),
-                      color: Color(0x55000000),
-                      blurRadius: 2,
-                      spreadRadius: 2)
-                ],
-                color: themeData.backgroundColor,
-                borderRadius: BorderRadius.circular(15)),
             child: (_editing)
                 ? Container(
+                    padding: EdgeInsets.fromLTRB(10, 0, 10, 0),
                     child: TextField(
-                      style: TextStyle(
-                        color: themeData.textTheme.title.color,
-                        shadows: <Shadow>[
-                          Shadow(
-                            offset: Offset(2.0, 3.0),
-                            blurRadius: 3.0,
-                          ),
-                        ],
-                      ),
+                      style: themeData.textTheme.headline6,
                       controller: _cont,
                       textCapitalization: TextCapitalization.sentences,
                       textInputAction: TextInputAction.done,
                       decoration: InputDecoration(
-                        counterStyle: themeData.textTheme.title,
+                        counterStyle: themeData.textTheme.headline6,
                         focusedBorder: UnderlineInputBorder(
                             borderSide: new BorderSide(
                                 color: themeData.colorScheme.secondary)),
@@ -62,36 +44,39 @@ class _CreateStoryState extends State<CreateStory> {
                           gapPadding: 5,
                         ),
                       ),
-                      maxLines: 22,
+                      maxLines: (height * 0.032).toInt(),
                       maxLength: 10000,
                       maxLengthEnforced: true,
+                      onChanged: (d) {
+                        data = {'story': _cont.text};
+                      },
                     ),
                   )
                 : Container(
-                    height: 450,
+                    height: height * 0.64,
                     child: ListView(
                       children: <Widget>[
-                        StyledText(
-                          ogString: _cont.text,
-                        ),
+                        StyledText(_cont.text),
                       ],
                     )),
           ),
-          _bar = SubmitBar([
+          SubmitBar([
             [
-              (){_bar.submit(null, 'stories', {
-                'story': _cont.text,
-                'likes': 0,
-                'comments': 0,
-                'dislikes': 0,
-              }, () {
-                setState(() {
-                  _cont.clear();
-                });
-              }, _cont.text.isNotEmpty);},
+              () {
+                submit(
+                    context: context,
+                    type: 'stories',
+                    data: data,
+                    func: () {
+                      setState(() {
+                        _cont.clear();
+                      });
+                    },
+                    available: _cont.text.replaceAll(' ', '').isNotEmpty);
+              },
               Icon(
                 Icons.file_upload,
-                color: themeData.textTheme.title.color,
+                color: themeData.textTheme.headline6.color,
               ),
             ],
             [
@@ -104,7 +89,7 @@ class _CreateStoryState extends State<CreateStory> {
               Icon(
                 (_editing) ? Icons.remove_red_eye : Icons.edit,
                 size: 20,
-                color: themeData.textTheme.title.color,
+                color: themeData.textTheme.headline6.color,
               ),
             ],
             [
@@ -116,7 +101,7 @@ class _CreateStoryState extends State<CreateStory> {
               },
               Icon(
                 Icons.clear,
-                color: themeData.textTheme.title.color,
+                color: themeData.textTheme.headline6.color,
               ),
             ],
           ]),

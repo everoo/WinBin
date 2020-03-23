@@ -19,7 +19,7 @@ class _MyPictureHolderState extends State<MyPictureHolder> {
   final double height;
   final double width;
   final Size imageSize;
-  Image image;
+  final Image image;
 
   double _angle = 0;
   double _scale = 1;
@@ -35,17 +35,16 @@ class _MyPictureHolderState extends State<MyPictureHolder> {
 
   @override
   Widget build(BuildContext context) {
+    if (Image == null) return Container();
     return GestureDetector(
       onDoubleTap: () {
         if (_scale == 1) {
-          if (imageSize.aspectRatio > 1) {
-            _scale = (imageSize.longestSide / imageSize.shortestSide) *
-                (height / width) *
-                1.02;
+          if (imageSize.aspectRatio > this.width / this.height) {
+            _scale = (imageSize.width / (imageSize.height-15)) *
+                (this.height / this.width);
           } else {
-            _scale = (imageSize.longestSide / imageSize.shortestSide) *
-                (width / height) /
-                1.02;
+            _scale = (imageSize.height / imageSize.width) *
+                (this.width / this.height);
           }
         } else {
           _scale = 1;
@@ -77,23 +76,20 @@ class _MyPictureHolderState extends State<MyPictureHolder> {
         ds.removeLast();
       },
       child: Container(
-        color: Colors.transparent,
         height: height,
         width: width,
-        child: Container(
-          width: width,
-          height: height,
-          child: ClipRect(
-            child: Transform.translate(
-              child: Transform.scale(
-                child: Transform.rotate(
-                  child: image,
-                  angle: _angle,
-                ),
-                scale: _scale,
+        color: Colors.transparent,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(25),
+          child: Transform.translate(
+            child: Transform.scale(
+              child: Transform.rotate(
+                child: image,
+                angle: _angle,
               ),
-              offset: _point,
+              scale: _scale,
             ),
+            offset: _point,
           ),
         ),
       ),

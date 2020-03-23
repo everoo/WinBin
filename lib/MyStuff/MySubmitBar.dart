@@ -1,95 +1,261 @@
 import 'dart:io';
-
+import 'package:Archive/MyStuff/TagList.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:winbin/Globals.dart';
+import 'package:Archive/Globals.dart';
 
-class SubmitBar extends StatelessWidget {
-  List actionIcon;
-  Size size;
-  EdgeInsetsGeometry margin;
+List<String> _createFilters = [];
+
+class SubmitBar extends StatefulWidget {
+  final List actionIcon;
+  final Size size;
+  final EdgeInsetsGeometry margin;
   SubmitBar(this.actionIcon, {this.size, this.margin});
 
   @override
-  Widget build(BuildContext context) {
+  _SubmitBarState createState() =>
+      _SubmitBarState(actionIcon, size: size, margin: margin);
+}
+
+class _SubmitBarState extends State<SubmitBar> {
+  bool showing = true;
+  List actionIcon;
+  Size size;
+  EdgeInsetsGeometry margin;
+
+  _SubmitBarState(this.actionIcon, {this.size, this.margin});
+
+  @override
+  void initState() {
     if (!leftHanded) {
       actionIcon = actionIcon.reversed.toList();
     }
-    if (size == null) {
-      size = Size(352, 85);
-    }
     if (margin == null) {
-      margin = EdgeInsets.fromLTRB(12, 0, 12, 0);
+      margin = EdgeInsets.fromLTRB(width * 0.02, 0, width * 0.02, 0);
+    } else {
+      showing = false;
     }
-    return ReadDecoration(
-      margin: margin,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: <Widget>[
-          for (List v in actionIcon)
-            Row(
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (size == null) {
+      size = Size(width * 0.96, height * 0.13);
+    }
+    return Stack(
+      children: <Widget>[
+        Padding(
+          padding: EdgeInsets.only(top: height * 0.045),
+          child: ReadDecoration(
+            margin: margin,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
               children: <Widget>[
-                Container(
-                  width: size.width / actionIcon.length - actionIcon.length + 1,
-                  height: size.height,
-                  child: FlatButton(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: (v == actionIcon.first)
-                            ? BorderRadius.only(
-                                bottomLeft: Radius.circular(30),
-                                topLeft: Radius.circular(30))
-                            : (v == actionIcon.last)
-                                ? BorderRadius.only(
-                                    bottomRight: Radius.circular(30),
-                                    topRight: Radius.circular(30))
-                                : BorderRadius.only()),
-                    onPressed: v[0],
-                    child: v[1],
+                for (List v in actionIcon)
+                  Row(
+                    children: <Widget>[
+                      Container(
+                        width: size.width / actionIcon.length -
+                            actionIcon.length +
+                            1,
+                        height: size.height,
+                        child: FlatButton(
+                          shape: RoundedRectangleBorder(
+                              borderRadius: (v == actionIcon.first)
+                                  ? BorderRadius.only(
+                                      bottomLeft: Radius.circular(25),
+                                      topLeft: Radius.circular(25))
+                                  : (v == actionIcon.last)
+                                      ? BorderRadius.only(
+                                          bottomRight: Radius.circular(25),
+                                          topRight: Radius.circular(25))
+                                      : BorderRadius.only()),
+                          onPressed: v[0],
+                          child: v[1],
+                        ),
+                      ),
+                      (v != actionIcon.last)
+                          ? Container(
+                              height: size.height * 3 / 5,
+                              width: 1,
+                              color: themeData.scaffoldBackgroundColor,
+                            )
+                          : Container(),
+                    ],
                   ),
-                ),
-                (v != actionIcon.last)
-                    ? Container(
-                        height: size.height*3/5,
-                        width: 1,
-                        color: themeData.scaffoldBackgroundColor,
-                      )
-                    : Container(),
               ],
             ),
-        ],
-      ),
+          ),
+        ),
+        (showing)
+            ? Container(
+                height: width * 0.11,
+                width: width * 0.2,
+                child: RaisedButton(
+                  elevation: 0,
+                  color: themeData.scaffoldBackgroundColor.withAlpha(180),
+                  onPressed: () => setState(() => sfw = !sfw),
+                  child: Column(
+                    children: <Widget>[
+                      Icon(
+                        (sfw) ? Icons.check : Icons.block,
+                        size: width * 0.06,
+                      ),
+                      Text(
+                        (sfw) ? 'SFW' : 'NSFW',
+                        style: TextStyle(
+                            color: themeData.textTheme.headline6.color
+                                .withAlpha(150)),
+                      ),
+                    ],
+                  ),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(width * 0.06)),
+                ),
+              )
+            : Container(),
+        (showing)
+            ? Container(
+                margin: EdgeInsets.only(left: width * 0.8),
+                height: width * 0.11,
+                width: width * 0.2,
+                child: RaisedButton(
+                  elevation: 0,
+                  color: themeData.scaffoldBackgroundColor.withAlpha(180),
+                  onPressed: askForComment,
+                  child: Icon(Icons.add_comment),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(width * 0.06)),
+                ),
+              )
+            : Container(),
+        (showing)
+            ? Container(
+                margin: EdgeInsets.only(left: width * 0.425),
+                height: width * 0.11,
+                width: width * 0.15,
+                child: RaisedButton(
+                  elevation: 0,
+                  color: themeData.scaffoldBackgroundColor.withAlpha(180),
+                  onPressed: askForTags,
+                  child: Icon(Icons.add_circle),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(width * 0.06)),
+                ),
+              )
+            : Container(),
+      ],
     );
   }
 
-  Future submit(File file, String type, Map<String, dynamic> data,
-      VoidCallback func, bool available) async {
-    if (available) {
-      vibrate();
-      int currentTime = Timestamp.now().seconds;
-      print(file);
-      if (file != null) {
-        FirebaseStorage.instance
-            .ref()
-            .child('$currentTime-$type-$myID')
-            .putFile(file);
-        file.delete();
-        print(file);
-      }
-      await Firestore.instance
-          .collection(type)
-          .document('$currentTime-$type-$myID')
-          .setData(data);
-      await Firestore.instance.runTransaction((transaction) async {
-        DocumentSnapshot freshSnap = await transaction.get(Firestore.instance
-            .collection(currentBoard)
-            .document('${Timestamp.now().toDate()}'.substring(0, 10)));
-        await transaction.update(freshSnap.reference, {
-          '${(freshSnap.data == null) ? 0 : freshSnap.data.length - 1}':
-              '$currentTime-$type-$myID}'
-        });
+  askForComment() {
+    showDialog<bool>(
+      context: context,
+      builder: (con) {
+        return AlertDialog(
+          backgroundColor: themeData.secondaryHeaderColor,
+          title: Text(
+            'Leave the first comment, or leave it blank.',
+            textAlign: TextAlign.center,
+            style: themeData.textTheme.headline6,
+          ),
+          content: TextField(
+            controller: cont,
+            autofocus: true,
+            style: themeData.textTheme.headline6,
+            textAlign: TextAlign.center,
+            onSubmitted: (s) => Navigator.of(context).pop(),
+          ),
+          actionsPadding: EdgeInsets.only(right: width * 0.28),
+        );
+      },
+    );
+  }
+
+  askForTags() {
+    showDialog<bool>(
+      context: context,
+      builder: (con) => Dialog(
+        backgroundColor: themeData.backgroundColor,
+        child: Container(
+            height: height * 0.3,
+            child: TagList(
+                _createFilters,
+                (List<String> _, List<int> _n) => _createFilters = _,
+                () => _createFilters = [],
+                'Create Post with Tags')),
+      ),
+    );
+  }
+}
+
+Future submit(
+    {BuildContext context,
+    String type,
+    Map<String, dynamic> data,
+    VoidCallback func,
+    VoidCallback funcA,
+    bool available = true,
+    File file}) async {
+  var _date = Timestamp.now().toDate();
+
+  if (available) {
+    lightImpact();
+    var currentTime = '$_date'
+        .substring(0, 19)
+        .replaceAll('-', '')
+        .replaceAll(' ', '');
+    data.addAll({
+      'sfw': sfw,
+      'likes': {myID: true},
+      'tags': _createFilters
+    });
+    if ((cont.text ?? '').replaceAll(' ', '') != '') {
+      data.addAll({
+        '$_date'.replaceAll('.', ''): [
+          cont.text,
+          {myID: true}
+        ]
       });
-      func();
     }
+    sfw = true;
+    cont.clear();
+    _createFilters = [];
+    if (data.containsKey('sfw')) {
+      if (funcA != null) funcA();
+      if (file != null) {
+        await FirebaseStorage.instance
+            .ref()
+            .child('$_date'.substring(0, 4))
+            .child('$_date'.substring(5, 7))
+            .child('$_date'.substring(0, 10))
+            .child('$currentTime-$type-$myID')
+            .putFile(file)
+            .onComplete
+            .then((d) {
+          d.ref.getDownloadURL().then((ur) {
+            data.addAll({'url': ur});
+            Firestore.instance
+                .collection('$_date'.substring(0, 10))
+                .document('$currentTime-$type-$myID')
+                .setData(data);
+          });
+        });
+      } else {
+        await Firestore.instance
+            .collection('$_date'.substring(0, 10))
+            .document('$currentTime-$type-$myID')
+            .setData(data);
+      }
+      func();
+      heavyImpact();
+    }
+  } else {
+    Scaffold.of(context).showSnackBar(SnackBar(
+      content: Container(
+          height: 40, child: Center(child: Text('Can\'t currently upload.'))),
+    ));
   }
 }

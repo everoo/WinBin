@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:winbin/Globals.dart';
-import 'package:winbin/MyStuff/MySubmitBar.dart';
+import 'package:Archive/Globals.dart';
+import 'package:Archive/MyStuff/MySubmitBar.dart';
 
 class CreatePoll extends StatefulWidget {
   @override
@@ -16,8 +16,8 @@ class _CreatePollState extends State<CreatePoll> {
     TextEditingController(),
     TextEditingController()
   ];
+  Map<String, dynamic> data = {};
   bool uploadAvailable = false;
-  SubmitBar _bar;
   var intToText = [
     'One',
     'Two',
@@ -38,29 +38,21 @@ class _CreatePollState extends State<CreatePoll> {
   ];
 
   @override
+  void initState() {
+    _scrollController.addListener(() { 
+      bgController.jumpTo(_scrollController.offset/2+500);
+    });
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    Map<String, dynamic> data = {
-      'question': textConList[0].text,
-      'likes': 0,
-      'dislikes': 0,
-      'comments': 0
-    };
-    int n = 0;
-    for (String item in list.getRange(1, list.length)) {
-      if (item != '') {
-        data.addEntries([
-          MapEntry('answer$n', [item, 0])
-        ]);
-      }
-      n += 1;
-    }
     return Container(
-      height: 560,
-      width: 350,
+      height: height*0.85,
       child: Stack(
         children: <Widget>[
           Container(
-            height: 490,
+            height: height*0.75,
             child: ListView(
               controller: _scrollController,
               children: <Widget>[
@@ -72,11 +64,11 @@ class _CreatePollState extends State<CreatePoll> {
                       padding: EdgeInsets.fromLTRB(12, 5, 12, 5),
                       child: TextField(
                         cursorColor: themeData.cursorColor,
-                        style: themeData.textTheme.title,
+                        style: themeData.textTheme.headline6,
                         textCapitalization: TextCapitalization.sentences,
                         textInputAction: TextInputAction.done,
                         decoration: InputDecoration(
-                            counterStyle: themeData.textTheme.title,
+                            counterStyle: themeData.textTheme.headline6,
                             focusedBorder: UnderlineInputBorder(
                                 borderSide: new BorderSide(
                                     color: themeData.colorScheme.secondary)),
@@ -89,8 +81,8 @@ class _CreatePollState extends State<CreatePoll> {
                             contentPadding: EdgeInsets.all(5),
                             hintText: (numb == 0)
                                 ? 'Your Question'
-                                : 'Answer ${intToText[numb-1]}',
-                            hintStyle: themeData.textTheme.title),
+                                : 'Answer ${intToText[numb - 1]}',
+                            hintStyle: themeData.textTheme.headline6),
                         scrollPadding: EdgeInsets.all(10),
                         textAlignVertical: TextAlignVertical.center,
                         textAlign: TextAlign.center,
@@ -100,6 +92,16 @@ class _CreatePollState extends State<CreatePoll> {
                         onChanged: (text) {
                           list[numb] = text;
                           checkIfUploadAvailable();
+                          data = {'question': textConList[0].text, 'votes': []};
+                          int n = 0;
+                          for (String item in list.getRange(1, list.length)) {
+                            if (item.replaceAll(' ', '') != '') {
+                              data.addAll({
+                                'answer$n': [item, 0]
+                              });
+                              n += 1;
+                            }
+                          }
                         },
                       ),
                     ),
@@ -117,14 +119,12 @@ class _CreatePollState extends State<CreatePoll> {
                                   textConList.add(TextEditingController());
                                 }
                                 _scrollController
-                                    .jumpTo(_scrollController.offset + 109);
+                                    .jumpTo(_scrollController.offset + 107);
                               });
                             }
                           : null,
-                      Icon(
-                        Icons.add,
-                        color: themeData.textTheme.title.color,
-                      ),
+                      Icon(Icons.add,
+                          color: themeData.textTheme.headline6.color),
                     ],
                     [
                       (list.length > 3)
@@ -134,38 +134,45 @@ class _CreatePollState extends State<CreatePoll> {
                                 list.removeLast();
                                 numList.removeLast();
                                 _scrollController
-                                    .jumpTo(_scrollController.offset - 109);
+                                    .jumpTo(_scrollController.offset - 107);
                               });
                             }
                           : null,
-                      Icon(
-                        Icons.remove,
-                        color: themeData.textTheme.title.color,
-                      ),
-                    ],
-                  ], size: Size(177, 40), margin: EdgeInsets.fromLTRB(99, 0, 99, 30),
-                )
+                      Icon(Icons.remove,
+                          color: themeData.textTheme.headline6.color),
+                    ]
+                  ],
+                  size: Size(width / 2, height / 20),
+                  margin:
+                      EdgeInsets.fromLTRB(width / 4, 0, width / 4, height / 20),
+                ),
+                Container(height: height*0.03)
               ],
             ),
           ),
           Container(
-            height: 85,
-            margin: EdgeInsets.fromLTRB(0, 470, 0, 0),
-            child: _bar = SubmitBar(
+            margin: EdgeInsets.fromLTRB(0, height * 0.69, 0, 5),
+            child: SubmitBar(
               [
                 [
                   () {
-                    _bar.submit(null, 'polls', data, () {
-                      setState(() {
-                        for (TextEditingController controller in textConList) {
-                          controller.clear();
-                        }
-                      });
-                    }, uploadAvailable);
+                    submit(
+                        context: context,
+                        type: 'polls',
+                        data: data,
+                        func: () {
+                          setState(() {
+                            for (TextEditingController controller
+                                in textConList) {
+                              controller.clear();
+                            }
+                          });
+                        },
+                        available: uploadAvailable);
                   },
                   Icon(
                     Icons.file_upload,
-                    color: themeData.textTheme.title.color,
+                    color: themeData.textTheme.headline6.color,
                   ),
                 ],
                 [
@@ -179,7 +186,7 @@ class _CreatePollState extends State<CreatePoll> {
                   },
                   Icon(
                     Icons.clear,
-                    color: themeData.textTheme.title.color,
+                    color: themeData.textTheme.headline6.color,
                   ),
                 ],
               ],
@@ -193,11 +200,11 @@ class _CreatePollState extends State<CreatePoll> {
   void checkIfUploadAvailable() {
     var questionAmount = 0;
     for (var text in list) {
-      if (text != '') {
+      if (text.replaceAll(' ', '') != '') {
         questionAmount += 1;
       }
     }
-    if (textConList[0].text != '' && questionAmount > 2) {
+    if (textConList[0].text.replaceAll(' ', '') != '' && questionAmount > 2) {
       setState(() {
         uploadAvailable = true;
       });

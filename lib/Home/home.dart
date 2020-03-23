@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:math';
-
+import 'package:firebase_admob/firebase_admob.dart';
 import 'package:flutter/material.dart';
-import 'package:winbin/Globals.dart';
-import 'package:winbin/Home/HomePage.dart';
+import 'package:Archive/Globals.dart';
+import 'package:flutter/rendering.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class Home extends StatefulWidget {
   final _HomeState state = _HomeState();
@@ -10,85 +12,116 @@ class Home extends StatefulWidget {
   @override
   _HomeState createState() => state;
 
-  void setState() {
-    state.settState();
-  }
+  void setState() => state.settState();
 }
 
-class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
-  TabController _tabController;
-  Background _background = Background();
+ScrollController bgTW = ScrollController();
 
+class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(vsync: this, length: 2);
-    _tabController.addListener(listener);
+    tabController = TabController(vsync: this, length: 2);
+    tabController.addListener(() {
+      myBanner.dispose();
+      if (((leftHanded) ? 1 : 0) == tabController.index) {
+        myBanner =
+            BannerAd(adUnitId: BannerAd.testAdUnitId, size: AdSize.fullBanner)
+              ..load()
+              ..show();
+      } else {
+        myBanner =
+            BannerAd(adUnitId: BannerAd.testAdUnitId, size: AdSize.fullBanner);
+      }
+    });
+    tabController.animation.addListener(() {
+      bgTW.jumpTo(tabController.animation.value * width * 0.5);
+    });
   }
 
-  double leftMargin = 100;
-  double rightMargin = 100;
-
-  void listener() {
-    if (_tabController.index == 1 || _tabController.index == 2) {
-      //FocusScope.of(context).requestFocus(FocusNode());
-    }
-  }
+  BannerAd myBanner =
+      BannerAd(adUnitId: BannerAd.testAdUnitId, size: AdSize.fullBanner);
 
   @override
   void dispose() {
-    _tabController.dispose();
+    imageCache.clear();
+    imageCache.clearLiveImages();
     super.dispose();
+    myBanner.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      themeMode: ThemeMode.system,
-      debugShowCheckedModeBanner: false,
-      home: DefaultTabController(
-        initialIndex: 1,
-        length: 2,
-        child: Stack(
-          children: <Widget>[
-            _background,
-            Scaffold(
-              backgroundColor: Colors.transparent,
-              appBar: PreferredSize(
-                preferredSize: Size.fromHeight(35),
-                child: Container(
-                  color: themeData.hoverColor,
-                  height: 16.0,
-                  child: TabBar(
-                    controller: _tabController,
-                    indicatorColor: themeData.colorScheme.error,
-                    indicatorWeight: 20,
-                    tabs: [
-                      Tab(
-                        child: Container(),
-                      ),
-                      Tab(
-                        child: Container(),
-                      ),
-                    ],
-                  ),
+    if (((leftHanded) ? 1 : 0) == tabController.index) {
+      myBanner
+        ..load()
+        ..show();
+    }
+    width = MediaQuery.of(context).size.width;
+    height = MediaQuery.of(context).size.height;
+    if (nEULA) {
+      Timer(Duration(milliseconds: 300), () {
+        showDialog<Null>(
+            barrierDismissible: false,
+            builder: (c) {
+              return AlertDialog(
+                backgroundColor: themeData.backgroundColor,
+                title: Text(
+                  'End User License Agreement',
+                  textAlign: TextAlign.center,
+                ),
+                content: Text(
+                  'A hint is that most buttons can be held down, also both sides have a drawer.(swipe from the left to the right when on the left side, and vice-versa.)\n\n You will not post anything that falls under these categories: Prolonged Graphic or Sadistic Realistic Violence, or Graphic Sexual Content and Nudity. And no gambling, simulated or otherwise is allowed. If you violate this agreement then your account, which is tied to your device, will be banned.\n\nContact evercole6@gmail.com for all questions.',
+                  style: themeData.textTheme.headline6,
+                  textAlign: TextAlign.center,
+                ),
+                actionsPadding: EdgeInsets.fromLTRB(0, 0, width * 0.22, 0),
+                actions: <Widget>[
+                  FlatButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        nEULA = false;
+                        SharedPreferences.getInstance()
+                          ..then((value) => value.setBool('nEULA', false));
+                      },
+                      child: Text(
+                        'Agree To EULA',
+                        style: themeData.textTheme.headline6,
+                      ))
+                ],
+              );
+            },
+            context: context);
+      });
+    }
+    return DefaultTabController(
+      initialIndex: (leftHanded) ? 0 : 0,
+      length: 2,
+      child: Stack(
+        children: <Widget>[
+          background,
+          Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: PreferredSize(
+              preferredSize: Size.fromHeight(height / 35),
+              child: Container(
+                color: themeData.hoverColor,
+                height: height / 35,
+                child: TabBar(
+                  controller: tabController,
+                  indicatorColor: themeData.colorScheme.background,
+                  indicatorWeight: height / 35,
+                  tabs: [Tab(child: Container()), Tab(child: Container())],
                 ),
               ),
-              body: TabBarView(
-                controller: _tabController,
-                children: (leftHanded)
-                    ? [
-                        create,
-                        HomeTab(),
-                      ]
-                    : [
-                        HomeTab(),
-                        create,
-                      ],
-              ),
             ),
-          ],
-        ),
+            body: TabBarView(
+              controller: tabController,
+              children:
+                  (leftHanded) ? [createTab, homeTab] : [homeTab, createTab],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -98,47 +131,38 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
       setState(() {});
     }
   }
+
+  @override
+  void deactivate() {
+    super.deactivate();
+  }
 }
 
 class Background extends StatefulWidget {
-  final _BackgroundState state = _BackgroundState();
   @override
   _BackgroundState createState() => _BackgroundState();
 }
 
 class _BackgroundState extends State<Background> {
-  int imageInt = 0;
-  Color bgColor = Colors.transparent;
-  double left = 0;
-  double right = 0;
-
   @override
-  void initState() {
-    super.initState();
-    init();
-  }
-
-  void init() {
-    imageInt = Random().nextInt(3);
+  Widget build(BuildContext context) {
     int red = (Random().nextInt(128) + (darkMode ? 0 : 128)) * 65536;
     int blue = (Random().nextInt(128) + (darkMode ? 0 : 128)) * 256;
     int green = (Random().nextInt(96) + (darkMode ? 0 : 64));
-    bgColor = Color(0xff000000 + red + blue + green);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    init();
-    return SingleChildScrollView(
-      controller: bgController,
-      child: Container(
-        color: bgColor,
-        //foregroundDecoration: BoxDecoration(color: bgColor),
-        height: 25000,
-        child: Image(
-            alignment: Alignment(50, 0),
-            image: AssetImage('assets/imaa/bgtex$imageInt.png'),
-            repeat: ImageRepeat.repeat),
+    return IgnorePointer(
+      child: SingleChildScrollView(
+        controller: bgTW,
+        scrollDirection: Axis.horizontal,
+        child: SingleChildScrollView(
+            controller: bgController,
+            child: Container(
+                color: Color(0xff000000 + red + blue + green),
+                height: 25000,
+                width: width * 1.5,
+                child: Image(
+                    image: AssetImage(
+                        'assets/imaa/bgtex${Random().nextInt(4)}.png'),
+                    repeat: ImageRepeat.repeat))),
       ),
     );
   }

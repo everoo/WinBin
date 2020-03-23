@@ -1,13 +1,15 @@
+import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:winbin/Home/home.dart';
 
 import 'Globals.dart';
 
 ThemeData lightThemeData = ThemeData(
-    textTheme: TextTheme(title: TextStyle(color: Colors.black)),
+    textTheme: TextTheme(headline6: TextStyle(color: Colors.black)),
     backgroundColor: Color(0xFFEEEEEE),
     scaffoldBackgroundColor: Color(0xFFBABABA),
     secondaryHeaderColor: Color(0xFFA9A9A9),
@@ -15,22 +17,22 @@ ThemeData lightThemeData = ThemeData(
     hoverColor: Color(0xFF553355),
     accentColor: Color(0xFFEEEEEE),
     colorScheme: ColorScheme(
-      background: Color(0xFFFF00FF), //
+      background: Color(0xFFFF00FF), 
       brightness: Brightness.light,
       onBackground: Color(0xFFFF00FF),
-      primary: Color(0xFFFF22FF), //
-      primaryVariant: Color(0xFFFF99FF), //
+      primary: Color(0xFFFF22FF), 
+      primaryVariant: Color(0xFFFF99FF), 
       onPrimary: Color(0xFFFF99FF),
-      secondary: Color(0xFFCC99CC), //
-      secondaryVariant: Color(0xFFFFCCFF), //
-      onSecondary: Color(0xFFFFCCFF),
-      surface: Color(0xFF995599), //
+      secondary: Color(0xFFCC99CC), 
+      secondaryVariant: Color(0xFFFF33AA), 
+      onSecondary: Color(0xFFFF66FF),
+      surface: Color(0xFF995599), 
       onSurface: Color(0xFF995599),
-      error: Color(0xDDBF00BF), //
-      onError: Color(0xDDBF00BF),
+      error: Color(0xFFBF00BF), 
+      onError: Color(0xFFBF00BF),
     ));
 ThemeData darkThemeData = ThemeData(
-  textTheme: TextTheme(title: TextStyle(color: Colors.grey[400])),
+  textTheme: TextTheme(headline6: TextStyle(color: Colors.grey[400])),
   backgroundColor: Color(0xFF262626),
   scaffoldBackgroundColor: Color(0xFF464646),
   secondaryHeaderColor: Color(0xFF202020),
@@ -38,19 +40,19 @@ ThemeData darkThemeData = ThemeData(
   hoverColor: Color(0xFF003300),
   accentColor: Color(0xFF292929),
   colorScheme: ColorScheme(
-    background: Color(0xFF008888),
+    background: Color(0xFF005555),
     brightness: Brightness.dark,
     onBackground: Color(0xFF00FF00),
-    primary: Color(0xFF00AA99), //
-    primaryVariant: Color(0xFF006600), //
-    onPrimary: Color(0xFF003300),
-    secondary: Color(0xFF338899), //
-    secondaryVariant: Color(0xFF005533), //
-    onSecondary: Color(0xFF22BBEE), //
-    surface: Color(0xFF668866), //
+    primary: Color(0xFF00AA99), 
+    primaryVariant: Color(0xFF006600), 
+    onPrimary: Color(0xFF449900),
+    secondary: Color(0xFF338899), 
+    secondaryVariant: Color(0xFF005533), 
+    onSecondary: Color(0xFF22BBEE), 
+    surface: Color(0xFF668866), 
     onSurface: Color(0xFF55BB88),
-    error: Color(0xDD337799), //
-    onError: Color(0xDD23FF23),
+    error: Color(0xFF337799), 
+    onError: Color(0xFF23FF23),
   ),
 );
 
@@ -59,14 +61,22 @@ void main() {
   SystemChrome.setPreferredOrientations(
       [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]).then((_) {
     SharedPreferences.getInstance().then((shared) {
+      myID = shared.getString('myID') ?? null;
+      _getId();
+      flaggedUsers = shared.getStringList('flaggedUsers') ?? [];
+      flaggedPosts = shared.getStringList('flaggedPosts') ?? [];
+      aFilters = shared.getStringList('filters') ?? [];
       darkMode = shared.getBool('darkMode') ?? true;
-      leftHanded = shared.getBool('leftHanded') ?? true;
+      leftHanded = shared.getBool('leftHanded') ?? false;
       looping = shared.getBool('looping') ?? true;
+      askingDark = shared.getBool('askingDark') ?? true;
+      askingHand = shared.getBool('askingHand') ?? true;
+      vibrates = shared.getBool('vibrates') ?? true;
+      nEULA = shared.getBool('nEULA') ?? true;
+      filtering = shared.getBool('filtering') ?? false;
       if (darkMode) {
-        themeMode = ThemeMode.dark;
         themeData = darkThemeData;
       } else {
-        themeMode = ThemeMode.light;
         themeData = lightThemeData;
       }
       runApp(MyApp());
@@ -74,29 +84,59 @@ void main() {
   });
 }
 
-Map<String, Stream<DocumentSnapshot>> streams = {
-  'A': null,
-  'B': null,
-  'C': null,
-  'D': null
-};
-Map<String, Stream<DocumentSnapshot>> currentStream = {};
-Map<String, Stream<DocumentSnapshot>> streamA = {};
-Map<String, Stream<DocumentSnapshot>> streamB = {};
-Map<String, Stream<DocumentSnapshot>> streamC = {};
-Map<String, Stream<DocumentSnapshot>> streamD = {};
+String returnable = '';
+Future _getId() async {
+  if (myID == null) {
+    createAccount();
+  } else {
+    await FirebaseAuth.instance
+        .signInWithEmailAndPassword(
+            email: '$myID@archive.io', password: 'aVerySecurePassword')
+        .catchError((err) {
+      if ('$err'.contains('USER_NOT_FOUND')) {
+        createAccount();
+      }
+    });
+    await Firestore.instance
+        .collection('0000auth')
+        .document('all')
+        .get()
+        .then((value) {
+      if (value.data['names'].contains(myID)) {
+        authorizedUser = true;
+      }
+    });
+  }
+}
+
+Future createAccount() async {
+  int rando = Random().nextInt(36);
+  returnable = returnable +
+      'abcdefghijklmnopqrstuvwxyz0123456789'.substring(rando, rando + 1);
+  await FirebaseAuth.instance
+      .createUserWithEmailAndPassword(
+          email: '$returnable@archive.io', password: 'aVerySecurePassword')
+      .catchError((err) {
+    if ('$err'.contains('EMAIL_ALREADY_IN_USE')) {
+      createAccount();
+    }
+  }).whenComplete(() async {
+    myID = returnable;
+    await SharedPreferences.getInstance()
+        .then((value) => value.setString('myID', myID));
+  });
+}
 
 class MyApp extends StatelessWidget {
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      themeMode: themeMode,
-      darkTheme: themeData,
-      theme: themeData,
+      themeMode: (darkMode) ? ThemeMode.dark : ThemeMode.light,
+      darkTheme: darkThemeData,
+      theme: lightThemeData,
       debugShowCheckedModeBanner: false,
-      title: "WinBin",
-      home: home = Home(),
+      title: "Archive",
+      home: home,
     );
   }
 }
