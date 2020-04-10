@@ -89,11 +89,14 @@ class _TagListState extends State<TagList> {
                           )
                         : Container(),
                   Center(
-                      child: Text(
-                          (widget.title == 'Sort by Tags')
-                              ? 'Or ${widget.title}'
-                              : widget.title,
-                          style: themeData.textTheme.headline6)),
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 6, bottom: 3),
+                        child: Text(
+                            (widget.title == 'Sort by Tags')
+                                ? 'and/or ${widget.title}'
+                                : widget.title,
+                            style: themeData.textTheme.headline6),
+                      )),
                   for (String t in snap.data.data['tags'])
                     Center(
                         child: RaisedButton(

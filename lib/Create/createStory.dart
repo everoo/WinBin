@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:Archive/Globals.dart';
-import 'package:Archive/MyStuff/MyStyle.dart';
 import 'package:Archive/MyStuff/MySubmitBar.dart';
 
 class CreateStory extends StatefulWidget {
@@ -10,7 +9,7 @@ class CreateStory extends StatefulWidget {
 
 class _CreateStoryState extends State<CreateStory> {
   TextEditingController _cont = TextEditingController();
-  bool _editing = true;
+  FocusNode _focus = FocusNode();
   Map<String, dynamic> data;
 
   @override
@@ -20,46 +19,42 @@ class _CreateStoryState extends State<CreateStory> {
       child: Column(
         children: <Widget>[
           ReadDecoration(
-            height: height * 0.64,
-            margin: EdgeInsets.fromLTRB(8, 8, 8, 8),
-            child: (_editing)
-                ? Container(
-                    padding: EdgeInsets.fromLTRB(10, 0, 10, 0),
-                    child: TextField(
-                      style: themeData.textTheme.headline6,
-                      controller: _cont,
-                      textCapitalization: TextCapitalization.sentences,
-                      textInputAction: TextInputAction.done,
-                      decoration: InputDecoration(
-                        counterStyle: themeData.textTheme.headline6,
-                        focusedBorder: UnderlineInputBorder(
-                            borderSide: new BorderSide(
-                                color: themeData.colorScheme.secondary)),
-                        enabledBorder: UnderlineInputBorder(
-                            borderSide: new BorderSide(
-                                color: themeData.colorScheme.primaryVariant)),
-                        contentPadding: EdgeInsets.fromLTRB(5, 0, 5, 0),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(5),
-                          gapPadding: 5,
-                        ),
-                      ),
-                      maxLines: (height * 0.032).toInt(),
-                      maxLength: 10000,
-                      maxLengthEnforced: true,
-                      onChanged: (d) {
-                        data = {'story': _cont.text};
-                      },
+              height: height * 0.64,
+              margin: EdgeInsets.fromLTRB(8, 8, 8, 8),
+              child: Container(
+                padding: EdgeInsets.fromLTRB(10, 6, 10, 0),
+                child: TextField(
+                  focusNode: _focus,
+                  style: themeData.textTheme.headline6,
+                  controller: _cont,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    counterStyle: themeData.textTheme.headline6,
+                    focusedBorder: UnderlineInputBorder(
+                        borderSide: new BorderSide(
+                            color: themeData.colorScheme.secondary)),
+                    enabledBorder: UnderlineInputBorder(
+                        borderSide: new BorderSide(
+                            color: themeData.colorScheme.primaryVariant)),
+                    contentPadding: EdgeInsets.fromLTRB(5, 0, 5, 0),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(5),
+                      gapPadding: 5,
                     ),
-                  )
-                : Container(
-                    height: height * 0.64,
-                    child: ListView(
-                      children: <Widget>[
-                        StyledText(_cont.text),
-                      ],
-                    )),
-          ),
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: (height * 0.032).toInt(),
+                  onChanged: (d) => data = {'story': _cont.text},
+                  onTap: () {
+                    lightImpact();
+                    if (_focus.hasFocus) {
+                      _focus.unfocus();
+                    } else {
+                      _focus.requestFocus();
+                    }
+                  },
+                ),
+              )),
           SubmitBar([
             [
               () {
@@ -76,19 +71,6 @@ class _CreateStoryState extends State<CreateStory> {
               },
               Icon(
                 Icons.file_upload,
-                color: themeData.textTheme.headline6.color,
-              ),
-            ],
-            [
-              () {
-                lightImpact();
-                setState(() {
-                  _editing = !_editing;
-                });
-              },
-              Icon(
-                (_editing) ? Icons.remove_red_eye : Icons.edit,
-                size: 20,
                 color: themeData.textTheme.headline6.color,
               ),
             ],

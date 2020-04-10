@@ -1,3 +1,5 @@
+import 'package:Archive/Home/ToolBar.dart';
+import 'package:Archive/MyStuff/LoadingIcon.dart';
 import 'package:Archive/MyStuff/TagList.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -18,26 +20,22 @@ class HomeTab extends StatefulWidget {
 
 class HomeTabState extends State<HomeTab>
     with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
-  GlobalKey<ScaffoldState> _drawerKey = GlobalKey();
   List<DocumentSnapshot> datas = [];
-  List<Shadow> shadows = List<Shadow>.generate(
-      5, (index) => Shadow(blurRadius: 1, color: themeData.backgroundColor));
   Offset memeOffset = Offset.zero;
   double memeAngle = 0;
   List<String> filters = aFilters;
-  TextEditingController _cont = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
     return Scaffold(
-      key: _drawerKey,
+      key: homeDrawerKey,
       drawer: (leftHanded) ? null : HomeDrawer(),
       endDrawer: (leftHanded) ? HomeDrawer() : null,
       backgroundColor: Colors.transparent,
       body: StreamBuilder<QuerySnapshot>(
           stream: Firestore.instance
-              .collection('${currentDay.toDate()}'.substring(0, 10))
+              .collection('$currentDay'.substring(0, 10))
               .snapshots(),
           builder: (c, s) {
             switch (s.connectionState) {
@@ -73,7 +71,7 @@ class HomeTabState extends State<HomeTab>
                     datas.removeWhere((e) => e.documentID == p);
                   }
                   for (var p in flaggedUsers) {
-                    datas.removeWhere((e) => e.documentID == p);
+                    datas.removeWhere((e) => e.documentID.split('-')[2] == p);
                   }
                   if (filters.isNotEmpty) {
                     for (String f in filters) {
@@ -107,7 +105,8 @@ class HomeTabState extends State<HomeTab>
                       }
                     }
                   }
-                  double hei = height * 0.91 - 60;
+                  if (docNum >= datas.length) docNum = datas.length - 1;
+                  if (docNum < 0) docNum = 0;
                   refreshMemes();
                   return Stack(
                     children: <Widget>[
@@ -118,129 +117,8 @@ class HomeTabState extends State<HomeTab>
                               medias[datas[docNum].documentID],
                               this)
                           : Container(),
-                      for (List _l in [
-                        [
-                          EdgeInsets.only(left: width - height * 0.06),
-                          searchForDoc,
-                          Text(
-                            '${docNum + 1}',
-                            style: TextStyle(
-                                shadows: shadows,
-                                color: themeData.textTheme.headline6.color
-                                    .withAlpha(150)),
-                          ),
-                          datas.isNotEmpty
-                        ],
-                        [
-                          EdgeInsets.only(left: width * 0.8, top: hei),
-                          filterTags,
-                          Icon(
-                            Icons.filter_list,
-                            color: themeData.textTheme.headline6.color
-                                .withAlpha(150),
-                          ),
-                          true
-                        ],
-                        [
-                          EdgeInsets.only(top: hei),
-                          (datas.isNotEmpty) ? interact : () {},
-                          Icon(Icons.share,
-                              color: themeData.textTheme.headline6.color
-                                  .withAlpha(150)),
-                          datas.isNotEmpty
-                        ],
-                        [
-                          EdgeInsets.only(top: hei, left: width * 0.2),
-                          () => like(context, false, datas[docNum].documentID),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: <Widget>[
-                              Text(
-                                (datas.isNotEmpty)
-                                    ? '${(datas[docNum].data['likes'] ?? {}).values.where((n) => n == false).length ?? 0}'
-                                    : '',
-                                style: TextStyle(
-                                    color: themeData.textTheme.headline6.color
-                                        .withAlpha(150)),
-                              ),
-                              Icon(Icons.thumb_down,
-                                  color: themeData.textTheme.headline6.color
-                                      .withAlpha(150)),
-                            ],
-                          ),
-                          datas.isNotEmpty
-                        ],
-                        [
-                          EdgeInsets.only(top: hei, left: width * 0.4),
-                          addComment,
-                          Icon(Icons.add_comment,
-                              color: themeData.textTheme.headline6.color
-                                  .withAlpha(150)),
-                          datas.isNotEmpty
-                        ],
-                        [
-                          EdgeInsets.only(top: hei, left: width * 0.6),
-                          () => like(context, true, datas[docNum].documentID),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: <Widget>[
-                              Icon(Icons.thumb_up,
-                                  color: themeData.textTheme.headline6.color
-                                      .withAlpha(150)),
-                              Text(
-                                (datas.isNotEmpty)
-                                    ? '${(datas[docNum].data['likes'] ?? {}).values.where((n) => n == true).length ?? 0}'
-                                    : '',
-                                style: TextStyle(
-                                    color: themeData.textTheme.headline6.color
-                                        .withAlpha(150)),
-                              ),
-                            ],
-                          ),
-                          datas.isNotEmpty
-                        ],
-                        [
-                          EdgeInsets.only(
-                              left: width * 0.8, top: hei - height * 0.06 - 2),
-                          edit,
-                          Icon(
-                            Icons.edit,
-                            color: themeData.textTheme.headline6.color
-                                .withAlpha(150),
-                          ),
-                          (((datas.isNotEmpty)
-                                      ? datas[docNum]
-                                              .documentID
-                                              .split('-')
-                                              .last ==
-                                          myID
-                                      : false) ||
-                                  authorizedUser) &&
-                              datas.isNotEmpty
-                        ]
-                      ])
-                        Visibility(
-                          visible: _l[3],
-                          child: Container(
-                            margin: _l[0],
-                            padding: EdgeInsets.fromLTRB(1, 0, 1, 0),
-                            height: height * 0.06,
-                            width: width * 0.2,
-                            child: RaisedButton(
-                              elevation: 0,
-                              color: themeData.scaffoldBackgroundColor
-                                  .withAlpha(150),
-                              onPressed: () {
-                                _l[1]();
-                                lightImpact();
-                              },
-                              child: _l[2],
-                              shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(width * 0.06)),
-                            ),
-                          ),
-                        ),
+                      ToolBar(this),
+                      (showingIndicator)?DragIndicator():Container(),
                     ],
                   );
                 }
@@ -249,56 +127,6 @@ class HomeTabState extends State<HomeTab>
                 return Container();
             }
           }),
-    );
-  }
-
-  addComment() {
-    lightImpact();
-    showDialog<bool>(
-      context: context,
-      builder: (con) {
-        return AlertDialog(
-          actionsPadding: EdgeInsets.only(right: width * 0.17),
-          backgroundColor: themeData.secondaryHeaderColor,
-          title: Text(
-            'Do or do not leave a comment, there is no try.',
-            style: themeData.textTheme.headline6,
-            textAlign: TextAlign.center,
-          ),
-          content: TextField(
-            controller: _cont,
-            autofocus: true,
-            style: themeData.textTheme.headline6,
-            textAlign: TextAlign.center,
-            maxLines: 3,
-          ),
-          actions: <Widget>[
-            for (var _n in ['Send', 'Cancel'])
-              FlatButton(
-                  onPressed: () async {
-                    lightImpact();
-                    Navigator.of(context).pop();
-                    if (_n == 'Send') {
-                      if ((_cont.text ?? '').replaceAll(' ', '') != '') {
-                        await Firestore.instance
-                            .collection(
-                                '${currentDay.toDate()}'.substring(0, 10))
-                            .document(datas[docNum].documentID)
-                            .updateData({
-                          '${Timestamp.now().toDate()}'.replaceAll('.', ''): [
-                            _cont.text,
-                            {myID: true},
-                            myID
-                          ]
-                        });
-                        _cont.clear();
-                      }
-                    }
-                  },
-                  child: Text(_n)),
-          ],
-        );
-      },
     );
   }
 
@@ -318,15 +146,18 @@ class HomeTabState extends State<HomeTab>
                   lightImpact();
                   Navigator.of(context).pop();
                   if (v == 'Delete') {
-                    FirebaseStorage.instance
-                        .ref()
-                        .child('${currentDay.toDate()}'.substring(0, 4))
-                        .child('${currentDay.toDate()}'.substring(5, 7))
-                        .child('${currentDay.toDate()}'.substring(0, 10))
-                        .child(datas[docNum].documentID)
-                        .delete();
+                    if (datas[docNum].documentID.contains('videos') ||
+                        datas[docNum].documentID.contains('images')) {
+                      FirebaseStorage.instance
+                          .ref()
+                          .child('$currentDay'.substring(0, 4))
+                          .child('$currentDay'.substring(5, 7))
+                          .child('$currentDay'.substring(0, 10))
+                          .child(datas[docNum].documentID)
+                          .delete();
+                    }
                     Firestore.instance
-                        .collection('${currentDay.toDate()}'.substring(0, 10))
+                        .collection('$currentDay'.substring(0, 10))
                         .document(datas[docNum].documentID)
                         .delete();
                     setState(() {
@@ -347,8 +178,7 @@ class HomeTabState extends State<HomeTab>
                               child:
                                   TagList(t, (List<String> activeTags, List _) {
                                 Firestore.instance
-                                    .collection('${currentDay.toDate()}'
-                                        .substring(0, 10))
+                                    .collection('$currentDay'.substring(0, 10))
                                     .document(datas[docNum].documentID)
                                     .updateData({'tags': activeTags});
                               }, () {}, 'Tag Your Post')),
@@ -371,8 +201,8 @@ class HomeTabState extends State<HomeTab>
       String _s = '';
       datas[docNum]
           .data['story']
-          .split('/')
-          .forEach((n) => _s += n.split('-').first);
+          .split(' ')
+          .forEach((n) => _s += n.split('\\').first);
       _copyable = _s;
     }
     if (datas[docNum].documentID.split('-')[1] == 'polls') {
@@ -401,10 +231,15 @@ class HomeTabState extends State<HomeTab>
                   if (v == 'Copy Data') {
                     Clipboard.setData(ClipboardData(text: _copyable));
                     Scaffold.of(context).showSnackBar(SnackBar(
-                        duration: Duration(seconds: 2),
-                        content: Container(
-                            height: height * 0.03,
-                            child: Center(child: Text(_copyable)))));
+                      duration: Duration(seconds: 2),
+                      content: Container(
+                        height: height * 0.03 + 60,
+                        child: Text(
+                          _copyable,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ));
                   } else {
                     _report(context);
                   }
@@ -431,9 +266,14 @@ class HomeTabState extends State<HomeTab>
                 numFilters = _tmpNums;
                 docNum = 0;
                 setState(() => filters = activeTags);
-                SharedPreferences.getInstance().then((v) => v.setStringList('filters', filters));
+                SharedPreferences.getInstance()
+                    .then((v) => v.setStringList('filters', filters));
               },
-              () => setState(() => filters = []),
+              () => setState(() {
+                filters = [];
+                SharedPreferences.getInstance()
+                    .then((v) => v.setStringList('filters', filters));
+              }),
               'Sort by Tags',
             ),
           ),
@@ -470,7 +310,7 @@ class HomeTabState extends State<HomeTab>
                         String s = t.replaceFirst('.', '');
                         if (int.tryParse(s) != null) {
                           setState(() {
-                            goToDoc(int.parse(s));
+                            goToDoc(int.parse(s) - 1);
                           });
                         }
                         Navigator.of(context).pop();
@@ -479,7 +319,7 @@ class HomeTabState extends State<HomeTab>
                     onSubmitted: (s) {
                       if (int.tryParse(s) != null) {
                         setState(() {
-                          goToDoc(int.parse(s));
+                          goToDoc(int.parse(s) - 1);
                         });
                       }
                       Navigator.of(context).pop();
@@ -487,7 +327,7 @@ class HomeTabState extends State<HomeTab>
                     autofocus: true,
                   ),
                   Text(
-                    '(max for ${'${currentDay.toDate()}'.substring(0, 10)} is ${datas.length})',
+                    '(max for ${'$currentDay'.substring(0, 10)} is ${datas.length})',
                     style: themeData.textTheme.headline6,
                   ),
                   Text(
@@ -504,13 +344,15 @@ class HomeTabState extends State<HomeTab>
   goToDoc(int which) {
     setState(() {
       if (which >= datas.length) {
-        docNum = datas.length - 1;
+        docNum = (datas.length ?? 1) - 1;
       } else if (which < 0) {
         docNum = 0;
       } else {
         docNum = which;
       }
     });
+    SharedPreferences.getInstance()
+        .then((value) => value.setInt('$currentDay'.substring(0, 10), docNum));
   }
 
   refreshMemes() {
@@ -521,8 +363,18 @@ class HomeTabState extends State<HomeTab>
   addMeme(int at) {
     if (at < datas.length && at >= 0) {
       if (datas[at].documentID.split('-')[1] == 'images') {
-        Image _im = Image.network(datas[at].data['url']);
-        precacheImage(_im.image, context).catchError((e){print(e);});
+        Image _im = Image.network(
+          datas[at].data['url'],
+          loadingBuilder: (BuildContext context, Widget child,
+              ImageChunkEvent loadingProgress) {
+            if (loadingProgress == null) return child;
+            return LoadingIcon(loadingProgress.cumulativeBytesLoaded,
+                loadingProgress.expectedTotalBytes);
+          },
+        );
+        precacheImage(_im.image, context).catchError((e) {
+          print(e);
+        });
         medias.putIfAbsent(datas[at].documentID, () => _im);
       } else if (datas[at].documentID.split('-')[1] == 'videos') {
         medias.putIfAbsent(
@@ -593,6 +445,7 @@ class HomeTabState extends State<HomeTab>
           content: Form(
             key: _formKey,
             child: TextFormField(
+              style: themeData.textTheme.headline6,
               maxLength: 50,
               validator: (d) {
                 return (d.length < 30) ? 'Give a longer reason.' : null;
@@ -639,7 +492,7 @@ class HomeTabState extends State<HomeTab>
                   Firestore.instance
                       .collection('0000flagged')
                       .document((type == 'User')
-                          ? {datas[docNum].documentID.split('-')[2]}
+                          ? datas[docNum].documentID.split('-')[2]
                           : datas[docNum].documentID)
                       .setData({'who': myID, 'why': _reason});
                   SharedPreferences.getInstance().then((d) {
@@ -649,12 +502,12 @@ class HomeTabState extends State<HomeTab>
                         : datas[docNum].documentID);
                     d.setStringList('flagged$type\s', foo);
                   });
-                  docNum -= 1;
                   if (type == 'User') {
                     flaggedUsers.add(datas[docNum].documentID.split('-')[2]);
                   } else {
                     flaggedPosts.add(datas[docNum].documentID);
                   }
+                  if (docNum > 0) docNum -= 1;
                   Navigator.of(context).pop();
                   homeTab = HomeTab();
                   home.setState();
@@ -671,7 +524,7 @@ class HomeTabState extends State<HomeTab>
   void dispose() {
     medias.forEach((key, value) {
       if (key.contains('videos')) {
-        value.dispose();
+        value.pause();
       } else if (key.contains('images')) {
         value.image.evict();
       }

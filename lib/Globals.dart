@@ -1,38 +1,36 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:Archive/main.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:Archive/Create/create.dart';
 import 'Home/HomePage.dart';
 import 'Home/home.dart';
 
-Timestamp currentDay = Timestamp.now();
+DateTime currentDay = DateTime.now().toUtc();
 ThemeData themeData = darkThemeData;
 String myID = '';
-ScrollController bgController = ScrollController(initialScrollOffset: 500);
 String creationType = "Image";
 Home home = Home();
 CreateTab createTab = CreateTab();
+GlobalKey<ScaffoldState> homeDrawerKey = GlobalKey();
+GlobalKey<ScaffoldState> createDrawerKey = GlobalKey();
+File file;
 HomeTab homeTab = HomeTab();
-Background background = Background();
 TabController tabController;
-bool darkMode,
-    askingDark,
-    askingHand,
-    vibrates,
-    leftHanded,
-    looping,
-    nEULA,
-    filtering;
+TextEditingController replyController = TextEditingController();
+bool darkMode, vibrates, leftHanded, looping, nEULA, filtering;
 bool authorizedUser = false;
+bool showingIndicator = false;
 int docNum = 0;
 List<String> flaggedPosts, flaggedUsers, aFilters = [];
 double width, height = 0;
+EdgeInsets pads;
 Map medias = {};
 bool sfw = true;
 TextEditingController cont = TextEditingController();
 List<int> numFilters = [0, 0, 0];
+double way = 0;
 
 Future<void> lightImpact() async {
   if (vibrates) {
@@ -83,7 +81,7 @@ class ReadDecoration extends StatelessWidget {
           ],
           color: themeData.backgroundColor,
           borderRadius: BorderRadius.circular(25)),
-      child: child,
+      child: child ?? Container(),
     );
   }
 }

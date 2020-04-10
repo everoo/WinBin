@@ -1,13 +1,10 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:Archive/Home/home.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:Archive/Create/create.dart';
 import 'package:Archive/Globals.dart';
 import 'package:Archive/Home/HomePage.dart';
-import 'package:Archive/MyStuff/DualIconButton.dart';
 import 'package:Archive/main.dart';
 
 class CreateDrawer extends StatelessWidget {
@@ -41,14 +38,14 @@ class CreateDrawer extends StatelessWidget {
                     padding: const EdgeInsets.all(5),
                     child: RaisedButton(
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      elevation: 4,
+                          borderRadius: BorderRadius.circular(15)),
+                      elevation: 9,
                       color: n.value[1],
                       padding: EdgeInsets.fromLTRB(
                           40,
-                          height * 0.23 / n.value[2],
+                          height * 0.235 / n.value[2],
                           40,
-                          (height * 0.23 + 5) / n.value[2]),
+                          (height * 0.235 + 5) / n.value[2]),
                       child: Icon(
                         n.value[0],
                         size: 60,
@@ -58,8 +55,12 @@ class CreateDrawer extends StatelessWidget {
                         heavyImpact();
                         Navigator.of(context).pop();
                         sfw = true;
+                        if (file != null) file.delete().catchError((e) {});
+                        file = null;
                         cont.clear();
                         creationType = n.key;
+                        SharedPreferences.getInstance().then((value) =>
+                            value.setString('creationType', creationType));
                         createTab = new CreateTab();
                         home.setState();
                       },
@@ -79,6 +80,7 @@ class HomeDrawer extends StatefulWidget {
 }
 
 double offset = 0;
+bool askingInfo = true;
 
 class _HomeDrawerState extends State<HomeDrawer> {
   List<int> removedDays = [];
@@ -86,278 +88,153 @@ class _HomeDrawerState extends State<HomeDrawer> {
   FocusNode _focus = FocusNode();
   ScrollController homeCont =
       ScrollController(keepScrollOffset: true, initialScrollOffset: offset);
+  Widget _ic;
 
   @override
   void initState() {
-    Duration dif = DateTime.now().difference(DateTime(2020, 3, 16));
+    Duration dif = DateTime.now().toUtc().difference(DateTime(2020, 3, 20));
     allDays = List<int>.generate(dif.inDays, (s) => s);
     homeCont.addListener(() {
       offset = homeCont.offset;
     });
     super.initState();
+    loopTime();
+    _ic = IconButton(
+      onPressed: () {
+        showDialog(
+            context: context,
+            builder: (c) {
+              return Dialog(
+                backgroundColor: themeData.backgroundColor,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(14, 20, 14, 16),
+                  child: Text(
+                    'You can search for specific days.\n Use a dot in place of a dash.\nThe first day is 2020.03.21\n\nYYYY. returns all of that year\n.MM. returns all of that month\n..DD returns all of that day\n\n For Example:\n\n2020.05 returns all days in May 2020.\n\n.05.2 returns the 20-29th of every May.\n\n2020..12 returns the 12th day of every month of 2020.\n',
+                    textAlign: TextAlign.center,
+                    style: themeData.textTheme.headline6,
+                  ),
+                ),
+              );
+            });
+      },
+      color: themeData.colorScheme.onSurface,
+      icon: Icon(Icons.help_outline),
+    );
+  }
+
+  //potential things to add:
+  //more than one answer on polls
+  //make scale animation when zooming on images and videos as well
+
+  DateTime tomorrow = DateTime(DateTime.now().toUtc().year,
+      DateTime.now().toUtc().month, DateTime.now().toUtc().day + 1);
+  String _timer = 'll';
+  loopTime() {
+    _timer =
+        '${tomorrow.difference(DateTime.now().toUtc()) + DateTime.now().timeZoneOffset}'
+            .split('.')
+            .first;
+    if (_timer.startsWith('0:')) _timer = _timer.substring(2, _timer.length);
+    setState(() {});
+    Timer(Duration(seconds: 1), loopTime);
   }
 
   @override
   Widget build(BuildContext context) {
+    List<IconData> ico = [
+      Icons.account_circle,
+      Icons.vibration,
+      Icons.pan_tool,
+      Icons.replay,
+      Icons.brightness_4,
+      Icons.info_outline,
+    ];
+    List<String> tex = [
+      'Unblock People',
+      'Toggle Vibrations',
+      'Toggle Right Handed',
+      'Toggle Video Looping',
+      'Toggle Dark Mode',
+      'Show Info',
+    ];
+    List<VoidCallback> act = [
+      clearPreferences,
+      switchVibrations,
+      switchSides,
+      switchLooping,
+      switchColor,
+      showInfo
+    ];
+    List<Color> col = [
+      themeData.colorScheme.primary,
+      (vibrates)
+          ? themeData.colorScheme.onPrimary
+          : themeData.scaffoldBackgroundColor,
+      themeData.colorScheme.error,
+      (looping)
+          ? themeData.colorScheme.secondaryVariant
+          : themeData.scaffoldBackgroundColor,
+      themeData.colorScheme.onSecondary,
+      themeData.colorScheme.onError
+    ];
+    if (leftHanded) {
+      col = col.reversed.toList();
+      act = act.reversed.toList();
+      tex = tex.reversed.toList();
+      ico = ico.reversed.toList();
+    }
     return Drawer(
       child: Container(
         color: themeData.backgroundColor,
         child: ListView(
+          padding: EdgeInsets.zero,
           physics: ClampingScrollPhysics(),
           children: <Widget>[
-            Container(
-              height: height * 0.4,
-              child: Center(
-                child: Stack(
-                  alignment: Alignment.topLeft,
-                  children: <Widget>[
-                    DualIconButton(
-                      size: Size(width * 0.3, width * 0.3),
-                      margin: EdgeInsets.fromLTRB(
-                          (leftHanded) ? 0 : width * 0.45, height * 0.08, 0, 0),
-                      icon: (askingDark)
-                          ? Icon(
-                              Icons.brightness_4,
-                              color: themeData.colorScheme.onSecondary,
-                              size: 60,
-                            )
-                          : Icon(
-                              Icons.replay,
-                              color: (looping ?? true)
-                                  ? themeData.colorScheme.secondaryVariant
-                                  : themeData.scaffoldBackgroundColor,
-                              size: 60,
-                            ),
-                      action: (askingDark)
-                          ? () {
-                              lightImpact();
-                              darkMode = !darkMode;
-                              themeData =
-                                  (darkMode) ? darkThemeData : lightThemeData;
-                              SharedPreferences.getInstance().then((d) {
-                                d.setBool('darkMode', darkMode);
-                                setState(() {});
-                                background = Background();
-                                homeTab = HomeTab();
-                                createTab = CreateTab();
-                                home.setState();
-                              });
-                            }
-                          : () {
-                              lightImpact();
-                              looping = !looping;
-                              SharedPreferences.getInstance().then((d) {
-                                d.setBool('looping', looping);
-                                setState(() {});
-                              });
-                            },
-                      actionA: () {
-                        lightImpact();
-                        askingDark = !askingDark;
-                        SharedPreferences.getInstance().then((d) {
-                          d.setBool('askingDark', askingDark);
-                          setState(() {});
-                        });
-                      },
-                    ),
-                    Container(
-                      height: width * 0.4,
-                      width: width * 0.4,
-                      margin: EdgeInsets.only(
-                          top: height * 0.15,
-                          left: (leftHanded) ? width * 0.3 : 10),
-                      child: RaisedButton(
-                        elevation: 9,
-                        color: themeData.secondaryHeaderColor,
-                        child: Icon(
-                          Icons.search,
-                          size: 100,
-                          color: themeData.colorScheme.primary,
-                        ),
-                        onPressed: () {
-                          heavyImpact();
-                          if (_focus.hasFocus) {
-                            _focus.unfocus();
-                          } else {
-                            _focus.requestFocus();
-                          }
-                        },
-                        onLongPress: () {
-                          showDialog(
-                              context: context,
-                              builder: (c) {
-                                return Dialog(
-                                  backgroundColor: themeData.backgroundColor,
-                                  child: Padding(
-                                    padding:
-                                        EdgeInsets.fromLTRB(14, 20, 14, 16),
-                                    child: Text(
-                                      'You can search for specific days\n Use a dot in place of a dash\nThe first day is 2020.01.29\n\nYYYY. returns all of that year\n.MM. returns all of that month\n..DD returns all of that day\n For Example:\n2020.02 gives all days in February 2020.\n.02.2 returns the days 20-29 of every February.\n2020..12 returns the 12th day of every month of 2020\n\nYou can go to a specific post by clicking on the number in the top left corner.',
-                                      textAlign: TextAlign.center,
-                                      style: themeData.textTheme.headline6,
-                                    ),
-                                  ),
-                                );
-                              });
-                        },
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(100),
-                        ),
-                      ),
-                    ),
-                    DualIconButton(
-                      size: Size(width * 0.25, width * 0.25),
-                      margin: EdgeInsets.fromLTRB(
-                          (leftHanded) ? width * 0.28 : width * 0.215, 0, 0, 0),
-                      icon: (askingHand)
-                          ? Padding(
-                              padding:
-                                  const EdgeInsets.only(bottom: 3, right: 5),
-                              child: Icon(Icons.pan_tool,
-                                  size: 35, color: themeData.colorScheme.error),
-                            )
-                          : Icon(
-                              Icons.vibration,
-                              color: (vibrates ?? true)
-                                  ? themeData.colorScheme.onPrimary
-                                  : themeData.scaffoldBackgroundColor,
-                              size: 35,
-                            ),
-                      action: (askingHand)
-                          ? () {
-                              leftHanded = !leftHanded;
-                              SharedPreferences.getInstance().then((d) {
-                                d.setBool('leftHanded', leftHanded);
-                                Navigator.of(context).pop();
-                                home.setState();
-                              });
-                            }
-                          : () {
-                              vibrates = !vibrates;
-                              heavyImpact();
-                              SharedPreferences.getInstance().then((d) {
-                                d.setBool('vibrates', vibrates);
-                                setState(() {});
-                              });
-                            },
-                      actionA: () {
-                        lightImpact();
-                        askingHand = !askingHand;
-                        SharedPreferences.getInstance().then((d) {
-                          d.setBool('askingHand', askingHand);
-                          setState(() {});
-                        });
-                      },
-                    ),
-                    Container(
-                      height: width * 0.15,
-                      width: width * 0.15,
-                      margin: EdgeInsets.fromLTRB(
-                          (leftHanded) ? width * 0.13 : width * 0.46,
-                          height * 0.265,
-                          0,
-                          0),
-                      child: RaisedButton(
-                        color: themeData.secondaryHeaderColor,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(width * 0.075)),
-                        elevation: 9,
-                        onPressed: () {
-                          showDialog<Null>(
-                            context: context,
-                            builder: (con) {
-                              return AlertDialog(
-                                backgroundColor: themeData.backgroundColor,
-                                content: Container(
-                                  height: height * 0.5,
-                                  width: width * 0.5,
-                                  child: ListView(
-                                    children: <Widget>[
-                                      Text(
-                                        'Contact Email:\nevercole6@gmail.com\n',
-                                        textAlign: TextAlign.center,
-                                        style: themeData.textTheme.headline6,
-                                      ),
-                                      Text(
-                                        'EULA:\nYou will not post anythng that falls under these categories: Prolonged Graphic or Sadistic Realistic Violence, or Graphic Sexual Content and Nudity. And no gambling, simulated or otherwise is allowed. If you violate this agreement then your account, which is tied to your device, will be banned.\n',
-                                        textAlign: TextAlign.center,
-                                        style: themeData.textTheme.headline6,
-                                      ),
-                                      Text(
-                                        'Most buttons can be held down to get more info.\n',
-                                        textAlign: TextAlign.center,
-                                        style: themeData.textTheme.headline6,
-                                      ),
-                                      Text(
-                                        'Double tap a video/image to reorient it. You can pinch to zoom/move it around. Videos start looping(hold down the dark mode button to change this setting), but you can hold down a video to stop it.\n',
-                                        textAlign: TextAlign.center,
-                                        style: themeData.textTheme.headline6,
-                                      ),
-                                      Text(
-                                        'Swipe left or right anywhere but the post to go to the next post.\n',
-                                        textAlign: TextAlign.center,
-                                        style: themeData.textTheme.headline6,
-                                      ),
-                                      Text(
-                                        'Tap anywhere to exit a pop up like this. The button below filters NSFW content.\n',
-                                        textAlign: TextAlign.center,
-                                        style: themeData.textTheme.headline6,
-                                      ),
-                                      RaisedButton(
-                                        color:
-                                            themeData.scaffoldBackgroundColor,
-                                        onPressed: () {
-                                          filtering = !filtering;
-                                          homeTab = HomeTab();
-                                          SharedPreferences.getInstance().then(
-                                            (value) {
-                                              value.setBool(
-                                                  'filtering', filtering);
-                                              Navigator.of(context).pop();
-                                            },
-                                          );
-                                        },
-                                        child: Text(
-                                          (filtering)
-                                              ? 'Stop Filtering'
-                                              : 'Filter Content',
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          );
-                        },
-                        child: Icon(
-                          Icons.info_outline,
-                          color: themeData.colorScheme.onError,
-                          size: 26,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(0, 8, 0, 6),
+              child: Text(
+                'Next Day In\n$_timer',
+                textAlign: TextAlign.center,
+                style: themeData.textTheme.headline6,
               ),
             ),
             Container(
+              height: 1,
+              color: themeData.colorScheme.primary,
+              margin: EdgeInsets.only(left: width * 0.03, right: width * 0.03),
+            ),
+            Container(
+              height: height * ((_focus.hasFocus) ? 0.43 : 0.76),
+              child: ListView(
+                padding: EdgeInsets.zero,
+                reverse: true,
+                controller: homeCont,
+                children: <Widget>[
+                  for (int n in allDays)
+                    (removedDays.contains(n)) ? Container() : DatePicker(n)
+                ],
+              ),
+            ),
+            Container(
+              padding: EdgeInsets.fromLTRB(10, 0, 10, 0),
               child: TextField(
                 textAlign: TextAlign.center,
                 onTap: () {
                   lightImpact();
-                  if (_focus.hasFocus) {
-                    _focus.unfocus();
-                  } else {
-                    _focus.requestFocus();
-                  }
+                  setState(() {
+                    if (_focus.hasFocus) {
+                      _focus.unfocus();
+                    } else {
+                      _focus.requestFocus();
+                    }
+                  });
                 },
                 focusNode: _focus,
                 keyboardType: TextInputType.numberWithOptions(decimal: true),
                 onChanged: (t) {
                   bool ll = t.contains('..');
                   for (int n in allDays) {
-                    if (!'${Timestamp.now().toDate().subtract(Duration(days: n))}'
+                    if (!'${DateTime.now().toUtc().subtract(Duration(days: n))}'
                         .substring(0, 10)
                         .replaceRange(5, ll ? 7 : 5, '')
                         .replaceAll('-', '.')
@@ -373,6 +250,8 @@ class _HomeDrawerState extends State<HomeDrawer> {
                 },
                 style: themeData.textTheme.headline6,
                 decoration: InputDecoration(
+                    prefixIcon: (leftHanded) ? null : _ic,
+                    suffixIcon: (leftHanded) ? _ic : null,
                     focusedBorder: UnderlineInputBorder(
                         borderSide: new BorderSide(
                             color: themeData.colorScheme.secondary)),
@@ -382,68 +261,160 @@ class _HomeDrawerState extends State<HomeDrawer> {
                     contentPadding: EdgeInsets.all(8)),
                 scrollPadding: EdgeInsets.all(0),
               ),
-              padding: EdgeInsets.fromLTRB(10, 0, 10, 0),
-              margin: EdgeInsets.all(0),
             ),
             Container(
-              height: height / 2,
-              child: ListView(
-                controller: homeCont,
+              margin: EdgeInsets.only(left: width * 0.02),
+              height: height * 0.1,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: <Widget>[
-                  for (int n in allDays)
-                    (removedDays.contains(n))
-                        ? Container()
-                        : Container(
-                            height: 50,
-                            width: 250,
-                            margin: EdgeInsets.fromLTRB(27, 6, 27, 6),
-                            child: RaisedButton(
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15)),
-                              elevation: 9,
-                              color: themeData.scaffoldBackgroundColor,
-                              child: Text(
-                                '${Timestamp.now().toDate().subtract(Duration(days: n)) ?? '2020-02-02'}'
-                                    .substring(0, 10),
-                                style: themeData.textTheme.headline6,
-                              ),
-                              onPressed:
-                                  ('${Timestamp.now().toDate().subtract(Duration(days: n))}'
-                                              .substring(0, 10) ==
-                                          '${currentDay.toDate()}'
-                                              .substring(0, 10))
-                                      ? null
-                                      : () {
-                                          lightImpact();
-                                          imageCache.clearLiveImages();
-                                          docNum = 0;
-                                          Navigator.of(context).pop();
-                                          medias.forEach((key, value) {
-                                            if (key.contains('videos')) {
-                                              value.stop();
-                                            } else if (key.contains('images')) {
-                                              value.image.evict();
-                                            }
-                                          });
-                                          medias = {};
-                                          currentDay = Timestamp.fromDate(
-                                              (DateTime.now().subtract(
-                                                  Duration(days: n))));
-                                          background = Background();
-                                          homeTab = HomeTab();
-                                          home.setState();
-                                        },
-                            ),
-                          ),
-                  Container(
-                    height: 60,
-                  )
+                  for (int n in List.generate(6, (i) => i))
+                    IconButton(
+                      tooltip: tex[n],
+                      icon: Icon(ico[n]),
+                      onPressed: act[n],
+                      color: col[n],
+                      iconSize: width * 0.08,
+                    )
                 ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  switchColor() {
+    lightImpact();
+    way = 0;
+    darkMode = !darkMode;
+    themeData = (darkMode) ? darkThemeData : lightThemeData;
+    SharedPreferences.getInstance().then((d) {
+      d.setBool('darkMode', darkMode);
+      setState(() {});
+      homeTab = HomeTab();
+      createTab = CreateTab();
+      home.setState();
+    });
+  }
+
+  switchLooping() {
+    lightImpact();
+    looping = !looping;
+    SharedPreferences.getInstance().then((d) {
+      d.setBool('looping', looping);
+      setState(() {});
+    });
+  }
+
+  switchSides() {
+    way = 0;
+    leftHanded = !leftHanded;
+    SharedPreferences.getInstance().then((d) {
+      d.setBool('leftHanded', leftHanded);
+      Navigator.of(context).pop();
+      home.setState();
+      tabController.animateTo((leftHanded) ? 1 : 0);
+      Timer(Duration(milliseconds: 250), () {
+        if (leftHanded) {
+          homeDrawerKey.currentState.openEndDrawer();
+        } else {
+          homeDrawerKey.currentState.openDrawer();
+        }
+      });
+    });
+  }
+
+  switchVibrations() {
+    vibrates = !vibrates;
+    heavyImpact();
+    SharedPreferences.getInstance().then((d) {
+      d.setBool('vibrates', vibrates);
+      setState(() {});
+    });
+  }
+
+  clearPreferences() {
+    heavyImpact();
+    SharedPreferences.getInstance().then((d) {
+      d.setStringList('flaggedUsers', []);
+      d.setStringList('flaggedPosts', []);
+      setState(() => askingInfo = !askingInfo);
+      flaggedPosts = [];
+      flaggedUsers = [];
+      homeTab = HomeTab();
+      home.setState();
+    });
+  }
+
+  showInfo() {
+    showDialog<Null>(
+      context: context,
+      builder: (con) {
+        return AlertDialog(
+          backgroundColor: themeData.backgroundColor,
+          content: Container(
+            height: height * 0.5,
+            width: width * 0.5,
+            child: ListView(
+              children: <Widget>[
+                Text(
+                  'Most buttons can be held down to get more info.\n',
+                  textAlign: TextAlign.center,
+                  style: themeData.textTheme.headline6,
+                ),
+                Text(
+                  'Double tap a video/image to reorient it. You can pinch to zoom/move it around. Videos start ${(looping) ? '' : 'not '}looping, but you can hold down a video to change it.\n',
+                  textAlign: TextAlign.center,
+                  style: themeData.textTheme.headline6,
+                ),
+                Text(
+                  'Swipe left or right anywhere but a post to go to the next or previous post.\n',
+                  textAlign: TextAlign.center,
+                  style: themeData.textTheme.headline6,
+                ),
+                Text(
+                  'Inorder to dismiss a keyboard just retap on whatever activated the keyboard.\n',
+                  textAlign: TextAlign.center,
+                  style: themeData.textTheme.headline6,
+                ),
+                Text(
+                  'Contact Email:\nevercole6@gmail.com\n',
+                  textAlign: TextAlign.center,
+                  style: themeData.textTheme.headline6,
+                ),
+                Text(
+                  'EULA:\nYou will not post anythng that falls under these categories: Prolonged Graphic or Sadistic Realistic Violence, or Graphic Sexual Content and Nudity. And no gambling, simulated or otherwise is allowed. If you violate this agreement then your account, which is tied to your device, will be banned.\n',
+                  textAlign: TextAlign.center,
+                  style: themeData.textTheme.headline6,
+                ),
+                Text(
+                  'Tap anywhere to exit a pop up like this. The button below filters NSFW content.\n',
+                  textAlign: TextAlign.center,
+                  style: themeData.textTheme.headline6,
+                ),
+                RaisedButton(
+                  color: themeData.scaffoldBackgroundColor,
+                  onPressed: () {
+                    filtering = !filtering;
+                    homeTab = HomeTab();
+                    SharedPreferences.getInstance().then(
+                      (value) {
+                        value.setBool('filtering', filtering);
+                        Navigator.of(context).pop();
+                      },
+                    );
+                  },
+                  child: Text(
+                    (filtering) ? 'Stop Filtering' : 'Filter Content',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -480,4 +451,73 @@ void playTone() {
       }
     });
   });
+}
+
+class DatePicker extends StatelessWidget {
+  final int n;
+  DatePicker(this.n);
+  @override
+  Widget build(BuildContext context) {
+    String _text =
+        '${DateTime.now().toUtc().subtract(Duration(days: n)) ?? '2020-02-02'}'
+            .substring(0, 10);
+    return Container(
+      height: 50,
+      width: 250,
+      margin: EdgeInsets.fromLTRB(20, 6, 20, 6),
+      child: RaisedButton(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        elevation: 9,
+        color: themeData.scaffoldBackgroundColor,
+        child: Text(
+          _text,
+          style: themeData.textTheme.headline6,
+        ),
+        onPressed: (_text == '$currentDay'.substring(0, 10))
+            ? null
+            : () async {
+                lightImpact();
+                imageCache.clearLiveImages();
+                await SharedPreferences.getInstance().then((value) {
+                  value.setInt('$currentDay'.substring(0, 10), docNum);
+                  currentDay =
+                      DateTime.now().toUtc().subtract(Duration(days: n));
+                  docNum = value.getInt('$currentDay'.substring(0, 10)) ?? 0;
+                });
+                Navigator.of(context).pop();
+                medias.forEach((key, value) {
+                  if (key.contains('videos')) {
+                    value.stop();
+                  } else if (key.contains('images')) {
+                    value.image.evict();
+                  }
+                });
+                way = 0;
+                medias = {};
+                homeTab = HomeTab();
+                home.setState();
+              },
+        onLongPress: (_text == '$currentDay'.substring(0, 10))
+            ? null
+            : () {
+                showDialog(
+                  context: context,
+                  builder: (c) {
+                    return Dialog(
+                      backgroundColor: themeData.backgroundColor,
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(14, 20, 14, 16),
+                        child: Text(
+                          'This app is sorted by days. You can only upload to today, however clicking on this button lets you see posts from $_text.',
+                          textAlign: TextAlign.center,
+                          style: themeData.textTheme.headline6,
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+      ),
+    );
+  }
 }

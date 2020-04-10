@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 
 class MyPictureHolder extends StatefulWidget {
   final double height;
@@ -15,7 +16,8 @@ class MyPictureHolder extends StatefulWidget {
       _MyPictureHolderState(height, width, imageSize, image);
 }
 
-class _MyPictureHolderState extends State<MyPictureHolder> {
+class _MyPictureHolderState extends State<MyPictureHolder>
+    with SingleTickerProviderStateMixin {
   final double height;
   final double width;
   final Size imageSize;
@@ -30,8 +32,50 @@ class _MyPictureHolderState extends State<MyPictureHolder> {
     ScaleUpdateDetails()
   ];
 
+  AnimationController _anime;
+  Animation<Offset> _ani;
+
+  void _runAnimation(Offset end) {
+    _ani = _anime.drive(
+      Tween(
+        begin: _point,
+        end: end,
+      ),
+    );
+
+    const spring = SpringDescription(
+      mass: 30,
+      stiffness: 1,
+      damping: 1,
+    );
+
+    final simulation = SpringSimulation(spring, 0, 1, 0);
+
+    _anime.animateWith(simulation);
+  }
+
   _MyPictureHolderState(this.height, this.width, this.imageSize, this.image);
   int countSwitch = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _anime = AnimationController(
+      vsync: this,
+      value: 0,
+      duration: Duration(seconds: 1),
+    );
+    _anime.addListener(animate);
+  }
+
+  animate() => setState(() => _point = _ani.value);
+
+  @override
+  void dispose() {
+    _anime.removeListener(animate);
+    _anime.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +84,7 @@ class _MyPictureHolderState extends State<MyPictureHolder> {
       onDoubleTap: () {
         if (_scale == 1) {
           if (imageSize.aspectRatio > this.width / this.height) {
-            _scale = (imageSize.width / (imageSize.height-15)) *
+            _scale = (imageSize.width / (imageSize.height - 15)) *
                 (this.height / this.width);
           } else {
             _scale = (imageSize.height / imageSize.width) *
@@ -50,8 +94,7 @@ class _MyPictureHolderState extends State<MyPictureHolder> {
           _scale = 1;
         }
         _angle = 0;
-        _point = Offset.zero;
-        setState(() {});
+        _runAnimation(Offset.zero);
       },
       onScaleStart: (d) {
         countSwitch = 0;
@@ -74,6 +117,11 @@ class _MyPictureHolderState extends State<MyPictureHolder> {
         _scale += deltaScale * 1.2;
         setState(() {});
         ds.removeLast();
+      },
+      onScaleEnd: (s) {
+        Offset _tmp = _point;
+        Offset pps = s.velocity.pixelsPerSecond;
+        _runAnimation(Offset(_tmp.dx + pps.dx / 7, _tmp.dy + pps.dy / 7));
       },
       child: Container(
         height: height,

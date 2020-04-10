@@ -11,7 +11,8 @@ class SubmitBar extends StatefulWidget {
   final List actionIcon;
   final Size size;
   final EdgeInsetsGeometry margin;
-  SubmitBar(this.actionIcon, {this.size, this.margin});
+  final List specialButton;
+  SubmitBar(this.actionIcon, {this.size, this.margin, this.specialButton});
 
   @override
   _SubmitBarState createState() =>
@@ -21,6 +22,7 @@ class SubmitBar extends StatefulWidget {
 class _SubmitBarState extends State<SubmitBar> {
   bool showing = true;
   List actionIcon;
+  List ll = [];
   Size size;
   EdgeInsetsGeometry margin;
 
@@ -44,10 +46,37 @@ class _SubmitBarState extends State<SubmitBar> {
     if (size == null) {
       size = Size(width * 0.96, height * 0.13);
     }
+    ll = [
+      [
+        () => setState(() => sfw = !sfw),
+        Column(
+          children: <Widget>[
+            Icon((sfw) ? Icons.check : Icons.block,
+                size: width * 0.06, color: themeData.textTheme.headline6.color),
+            Text((sfw) ? 'SFW' : 'NSFW',
+                style: TextStyle(color: themeData.textTheme.headline6.color)),
+          ],
+        ),
+      ],
+      [
+        askForComment,
+        Icon(Icons.add_comment, color: themeData.textTheme.headline6.color),
+      ],
+      [
+        askForTags,
+        Icon(Icons.add_circle, color: themeData.textTheme.headline6.color),
+      ]
+    ];
+    if (widget.specialButton!=null) {
+      ll.add(widget.specialButton);
+    }
+    if (!leftHanded) {
+      ll = ll.reversed.toList();
+    }
     return Stack(
       children: <Widget>[
         Padding(
-          padding: EdgeInsets.only(top: height * 0.045),
+          padding: EdgeInsets.only(top: (showing) ? height * 0.045 : 0),
           child: ReadDecoration(
             margin: margin,
             child: Row(
@@ -89,63 +118,26 @@ class _SubmitBarState extends State<SubmitBar> {
             ),
           ),
         ),
-        (showing)
-            ? Container(
-                height: width * 0.11,
-                width: width * 0.2,
-                child: RaisedButton(
-                  elevation: 0,
-                  color: themeData.scaffoldBackgroundColor.withAlpha(180),
-                  onPressed: () => setState(() => sfw = !sfw),
-                  child: Column(
-                    children: <Widget>[
-                      Icon(
-                        (sfw) ? Icons.check : Icons.block,
-                        size: width * 0.06,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: <Widget>[
+            for (var l in ll)
+              (showing)
+                  ? Container(
+                      height: width * 0.11,
+                      width: width * 0.2,
+                      child: RaisedButton(
+                        elevation: 3,
+                        color: themeData.scaffoldBackgroundColor,
+                        onPressed: l[0],
+                        child: l[1],
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(width * 0.06)),
                       ),
-                      Text(
-                        (sfw) ? 'SFW' : 'NSFW',
-                        style: TextStyle(
-                            color: themeData.textTheme.headline6.color
-                                .withAlpha(150)),
-                      ),
-                    ],
-                  ),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(width * 0.06)),
-                ),
-              )
-            : Container(),
-        (showing)
-            ? Container(
-                margin: EdgeInsets.only(left: width * 0.8),
-                height: width * 0.11,
-                width: width * 0.2,
-                child: RaisedButton(
-                  elevation: 0,
-                  color: themeData.scaffoldBackgroundColor.withAlpha(180),
-                  onPressed: askForComment,
-                  child: Icon(Icons.add_comment),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(width * 0.06)),
-                ),
-              )
-            : Container(),
-        (showing)
-            ? Container(
-                margin: EdgeInsets.only(left: width * 0.425),
-                height: width * 0.11,
-                width: width * 0.15,
-                child: RaisedButton(
-                  elevation: 0,
-                  color: themeData.scaffoldBackgroundColor.withAlpha(180),
-                  onPressed: askForTags,
-                  child: Icon(Icons.add_circle),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(width * 0.06)),
-                ),
-              )
-            : Container(),
+                    )
+                  : Container(),
+          ],
+        ),
       ],
     );
   }
@@ -185,7 +177,7 @@ class _SubmitBarState extends State<SubmitBar> {
                 _createFilters,
                 (List<String> _, List<int> _n) => _createFilters = _,
                 () => _createFilters = [],
-                'Create Post with Tags')),
+                'Add Tags to Your Post')),
       ),
     );
   }
@@ -199,14 +191,12 @@ Future submit(
     VoidCallback funcA,
     bool available = true,
     File file}) async {
-  var _date = Timestamp.now().toDate();
+  var _date = DateTime.now().toUtc();
 
   if (available) {
     lightImpact();
-    var currentTime = '$_date'
-        .substring(0, 19)
-        .replaceAll('-', '')
-        .replaceAll(' ', '');
+    var currentTime =
+        '$_date'.substring(0, 19).replaceAll('-', '').replaceAll(' ', '');
     data.addAll({
       'sfw': sfw,
       'likes': {myID: true},
@@ -254,8 +244,10 @@ Future submit(
     }
   } else {
     Scaffold.of(context).showSnackBar(SnackBar(
-      content: Container(
-          height: 40, child: Center(child: Text('Can\'t currently upload.'))),
+      content: Text(
+        'Can\'t currently upload.',
+        textAlign: TextAlign.center,
+      ),
     ));
   }
 }

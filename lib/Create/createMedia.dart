@@ -1,6 +1,5 @@
 import 'package:Archive/MyStuff/MyVideoPlayer.dart';
 import 'package:flutter/material.dart';
-import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:Archive/Globals.dart';
 import 'package:Archive/MyStuff/MyPictureHolder.dart';
@@ -18,34 +17,31 @@ class _CreateMediaState extends State<CreateMedia> {
   VideoPlayerController _controller;
   Image _image;
 
-  File _file;
-  Size _fileSize;
+  Size fileSize;
   bool tooBig = false;
   bool visible = false;
 
   Future getMedia(bool usesCamera) async {
     if (widget.image) {
-      _file = await ImagePicker.pickImage(
+      file = await ImagePicker.pickImage(
           source: (usesCamera) ? ImageSource.camera : ImageSource.gallery);
     } else {
-      _file = await ImagePicker.pickVideo(
+      file = await ImagePicker.pickVideo(
           source: (usesCamera) ? ImageSource.camera : ImageSource.gallery);
     }
-    if (_file != null) {
+    if (file != null) {
       if (widget.image) {
-        var stats = await decodeImageFromList(_file.readAsBytesSync());
-        _fileSize = Size(stats.width.toDouble(), stats.height.toDouble());
-        _image = Image.file(_file, scale: 1.5, fit: BoxFit.scaleDown);
+        var stats = await decodeImageFromList(file.readAsBytesSync());
+        fileSize = Size(stats.width.toDouble(), stats.height.toDouble());
+        _image = Image.file(file, scale: 1.5, fit: BoxFit.scaleDown);
       } else {
-        _controller = VideoPlayerController.file(_file);
+        _controller = VideoPlayerController.file(file);
         _controller.initialize();
         _controller.setLooping(looping);
       }
     }
-    _file.stat().then((d) {
-      if (d.size > 25000000) {
-        tooBig = true;
-      }
+    file.stat().then((d) {
+      if (d.size > 25000000) tooBig = true;
     });
     setState(() {
       visible = true;
@@ -56,7 +52,7 @@ class _CreateMediaState extends State<CreateMedia> {
   Widget build(BuildContext context) {
     return Container(
       height: height * 0.85,
-      child: (_file == null || !visible)
+      child: (file == null || !visible)
           ? Column(
               mainAxisAlignment: MainAxisAlignment.start,
               children: <Widget>[
@@ -108,36 +104,34 @@ class _CreateMediaState extends State<CreateMedia> {
               children: <Widget>[
                 Stack(
                   children: <Widget>[
-                    RaisedButton.icon(
-                      onPressed: () {
-                        Scaffold.of(context).showSnackBar(SnackBar(
-                          content: Container(
-                              height: 40,
-                              child: Center(
-                                  child: Text('File is too big. Max is 25 MB.'))),
-                        ));
-                      },
-                      icon: Icon(Icons.error_outline),
-                      label: null,
-                      color: Color(0xAAFF0000),
-                    ),
-                    Container(
+                    ReadDecoration(
+                      height: height * 0.64,
                       margin: EdgeInsets.fromLTRB(width * 0.02, height * 0.01,
                           width * 0.02, height * 0.01),
-                      decoration: BoxDecoration(
-                        color: Color(0x55000000),
-                        borderRadius: BorderRadius.circular(25),
-                      ),
                       child: (widget.image)
                           ? MyPictureHolder(
                               image: _image,
                               height: height * 0.64,
-                              width: width * 0.9,
-                              imageSize: _fileSize,
+                              width: width * 0.98,
+                              imageSize: fileSize,
                             )
                           : MyVideoPlayer(
-                              _controller, height * 0.64, width * 0.9),
+                              _controller, height * 0.64, width * 0.98),
                     ),
+                    (tooBig)
+                        ? IconButton(
+                            splashColor: Colors.transparent,
+                            onPressed: () {
+                              Scaffold.of(context).showSnackBar(SnackBar(
+                                  content: Text(
+                                'File is too big. Max is 25 MB.',
+                                textAlign: TextAlign.center,
+                              )));
+                            },
+                            icon: Icon(Icons.error),
+                            color: Color(0xAAFF0000),
+                          )
+                        : Container(),
                   ],
                 ),
                 SubmitBar([
@@ -145,12 +139,12 @@ class _CreateMediaState extends State<CreateMedia> {
                     () {
                       submit(
                           context: context,
-                          file: _file,
+                          file: file,
                           type: (widget.image) ? 'images' : 'videos',
                           data: (widget.image)
                               ? {
-                                  'width': _fileSize.width,
-                                  'height': _fileSize.height
+                                  'width': fileSize.width,
+                                  'height': fileSize.height
                                 }
                               : {},
                           func: delete,
@@ -176,14 +170,14 @@ class _CreateMediaState extends State<CreateMedia> {
   delete() {
     lightImpact();
     setState(() {
-      if (_file != null) {
+      if (file != null) {
         tooBig = false;
         if (_image != null) _image.image.evict();
         if (_controller != null) _controller.stop();
         _image = null;
         _controller = null;
-        _file.delete().catchError((e) {});
-        _file = null;
+        file.delete().catchError((e) {});
+        file = null;
         visible = false;
       }
     });
@@ -193,7 +187,7 @@ class _CreateMediaState extends State<CreateMedia> {
   void dispose() {
     if (_controller != null) _controller.dispose();
     if (_image != null) _image.image.evict();
-    if (_file != null) _file.delete().catchError((e) {});
+    if (file != null) file.delete().catchError((e) {});
     super.dispose();
   }
 }
